@@ -1,26 +1,27 @@
-# Historia Clínica Distribuida - Sistema Completo
-# Levantar: docker compose up -d  (o docker-compose up -d)
-# Puertos: 5433 (nodo1), 5434 (nodo2), 5435 (nodo3), 8001 (app)
+# Historia Clínica Distribuida v3.0 - Arquitectura Microservicios
+# docker compose up -d --build
 
 services:
-  app:
-    build: .
-    container_name: historia_clinica_app
+
+  # ─── INFRAESTRUCTURA ───────────────────────────────────────────────
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
     ports:
-      - "8001:8001"
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
     environment:
-      - PYTHONUNBUFFERED=1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - ./templates:/app/templates
-      - ./static:/app/static
-    depends_on:
-      pg_nodo1:
-        condition: service_healthy
-      pg_nodo2:
-        condition: service_healthy
-      pg_nodo3:
-        condition: service_healthy
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    command: >
+      sh -c "rabbitmq-plugins enable rabbitmq_prometheus; rabbitmq-server"
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     restart: unless-stopped
     networks:
       - historia_clinica_net
@@ -31,28 +32,23 @@ services:
     ports:
       - "8080:8080"
     environment:
-      - spring.datasource.url=jdbc:postgresql://pg_nodo1:5432/fhir_db
-      - spring.datasource.username=admin
-      - spring.datasource.password=admin
-      - spring.datasource.driverClassName=org.postgresql.Driver
-      - spring.jpa.properties.hibernate.dialect=ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
-      - hapi.fhir.fhir_version=R4
-      - hapi.fhir.subscription.resthook_enabled=false
-      - hapi.fhir.allow_external_references=true
-      - hapi.fhir.allow_multiple_delete=true
-      - hapi.fhir.reuse_cached_search_results_millis=60000
+      spring.datasource.url: jdbc:postgresql://pg_nodo1:5432/fhir_db
+      spring.datasource.username: admin
+      spring.datasource.password: admin
+      spring.datasource.driverClassName: org.postgresql.Driver
+      spring.jpa.properties.hibernate.dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgres94Dialect
+      hapi.fhir.fhir_version: R4
+      hapi.fhir.subscription.resthook_enabled: "false"
+      hapi.fhir.allow_external_references: "true"
+      hapi.fhir.allow_multiple_delete: "true"
     depends_on:
       pg_nodo1:
         condition: service_healthy
     restart: unless-stopped
     networks:
       - historia_clinica_net
-    healthcheck:
-      test: [ "CMD-SHELL", "curl -f http://localhost:8080/fhir/metadata || exit 1" ]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+
+  # ─── POSTGRES SHARDED NODES ────────────────────────────────────────
 
   pg_nodo1:
     image: postgres:15
@@ -65,8 +61,11 @@ services:
       POSTGRES_DB: historia_clinica
     volumes:
       - pg_data_nodo1:/var/lib/postgresql/data
+      - ./database/nodo1.sql:/docker-entrypoint-initdb.d/03-schema.sql
+      - ./database/init-pg_nodo1.sh:/docker-entrypoint-initdb.d/01-init-db.sh
+      - ./database/events/init-events.sh:/docker-entrypoint-initdb.d/02-init-events.sh
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d historia_clinica" ]
+      test: ["CMD-SHELL", "pg_isready -U admin -d historia_clinica"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -86,8 +85,9 @@ services:
       POSTGRES_DB: historia_clinica
     volumes:
       - pg_data_nodo2:/var/lib/postgresql/data
+      - ./database/nodo2.sql:/docker-entrypoint-initdb.d/01-schema.sql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d historia_clinica" ]
+      test: ["CMD-SHELL", "pg_isready -U admin -d historia_clinica"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -107,8 +107,9 @@ services:
       POSTGRES_DB: historia_clinica
     volumes:
       - pg_data_nodo3:/var/lib/postgresql/data
+      - ./database/nodo3.sql:/docker-entrypoint-initdb.d/01-schema.sql
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U admin -d historia_clinica" ]
+      test: ["CMD-SHELL", "pg_isready -U admin -d historia_clinica"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -117,11 +118,167 @@ services:
     networks:
       - historia_clinica_net
 
+  # ─── MICROSERVICIOS ────────────────────────────────────────────────
+
+  gateway-service:
+    build:
+      context: .
+      dockerfile: services/gateway_service/Dockerfile
+    container_name: gateway_service
+    ports:
+      - "8001:8000"
+    environment:
+      PATIENT_SERVICE_URL: http://patient-service:8002
+      CLINICAL_SERVICE_URL: http://clinical-service:8003
+    volumes:
+      - ./frontend:/app/frontend
+    depends_on:
+      - patient-service
+      - clinical-service
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  patient-service:
+    build:
+      context: .
+      dockerfile: services/patient_service/Dockerfile
+    container_name: patient_service
+    ports:
+      - "8002:8002"
+    environment:
+      HAPI_FHIR_URL: http://hapi-fhir:8080/fhir
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      hapi-fhir:
+        condition: service_started
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  clinical-service:
+    build:
+      context: .
+      dockerfile: services/clinical_service/Dockerfile
+    container_name: clinical_service
+    ports:
+      - "8003:8003"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      pg_nodo1:
+        condition: service_healthy
+      pg_nodo2:
+        condition: service_healthy
+      pg_nodo3:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  sync-service:
+    build:
+      context: .
+      dockerfile: services/sync_service/Dockerfile
+    container_name: sync_service
+    ports:
+      - "8004:8004"
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      EVENTS_DB_HOST: pg_nodo1
+      EVENTS_DB_PORT: 5432
+      EVENTS_DB_USER: admin
+      EVENTS_DB_PASSWORD: admin
+      EVENTS_DB_NAME: historia_clinica
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      pg_nodo1:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  # ─── MONITOREO ─────────────────────────────────────────────────────
+
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus/prom.yml:/etc/prometheus/prometheus.yml
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  grafana:
+    image: grafana/grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  postgres-exporter-nodo1:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_nodo1
+    environment:
+      DATA_SOURCE_NAME: postgresql://admin:admin@pg_nodo1:5432/historia_clinica?sslmode=disable
+    ports:
+      - "9187:9187"
+    depends_on:
+      pg_nodo1:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  postgres-exporter-nodo2:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_nodo2
+    environment:
+      DATA_SOURCE_NAME: postgresql://admin:admin@pg_nodo2:5432/historia_clinica?sslmode=disable
+    ports:
+      - "9188:9187"
+    depends_on:
+      pg_nodo2:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
+  postgres-exporter-nodo3:
+    image: prometheuscommunity/postgres-exporter
+    container_name: postgres_exporter_nodo3
+    environment:
+      DATA_SOURCE_NAME: postgresql://admin:admin@pg_nodo3:5432/historia_clinica?sslmode=disable
+    ports:
+      - "9189:9187"
+    depends_on:
+      pg_nodo3:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - historia_clinica_net
+
 volumes:
   pg_data_nodo1:
   pg_data_nodo2:
   pg_data_nodo3:
-
+  grafana_data:
 
 networks:
   historia_clinica_net:
