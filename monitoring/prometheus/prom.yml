@@ -1,0 +1,39 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'gateway-service'
+    static_configs:
+      - targets: ['gateway_service:8000']
+
+  - job_name: 'patient-service'
+    static_configs:
+      - targets: ['patient_service:8002']
+
+  - job_name: 'clinical-service'
+    static_configs:
+      - targets: ['clinical_service:8003']
+
+  - job_name: 'sync-service'
+    static_configs:
+      - targets: ['sync_service:8004']
+
+  - job_name: 'rabbitmq'
+    static_configs:
+      - targets: ['rabbitmq:15692']
+
+  - job_name: 'postgres-nodo1'
+    static_configs:
+      - targets: ['postgres_exporter_nodo1:9187']
+
+  - job_name: 'postgres-nodo2'
+    static_configs:
+      - targets: ['postgres_exporter_nodo2:9187']
+
+  - job_name: 'postgres-nodo3'
+    static_configs:
+      - targets: ['postgres_exporter_nodo3:9187']

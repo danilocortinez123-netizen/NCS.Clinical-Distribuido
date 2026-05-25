@@ -1,0 +1,62 @@
+{
+  "title": "HIS Distribuido - Overview",
+  "tags": ["his", "overview"],
+  "timezone": "browser",
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Total Pending",
+      "targets": [{"expr": "his_outbox_pending_total", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 0, "w": 8, "h": 6}
+    },
+    {
+      "type": "stat",
+      "title": "Total Processed",
+      "targets": [{"expr": "his_outbox_processed_total", "refId": "A"}],
+      "gridPos": {"x": 8, "y": 0, "w": 8, "h": 6}
+    },
+    {
+      "type": "stat",
+      "title": "Total Failed",
+      "targets": [{"expr": "his_outbox_failed_total", "refId": "A"}],
+      "gridPos": {"x": 16, "y": 0, "w": 8, "h": 6}
+    },
+    {
+      "type": "timeseries",
+      "title": "Pending by Node",
+      "targets": [{"expr": "his_outbox_pending_by_node", "legendFormat": "{{node}}", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 6, "w": 12, "h": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "Failed by Node",
+      "targets": [{"expr": "his_outbox_failed_by_node", "legendFormat": "{{node}}", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 6, "w": 12, "h": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Requests (Gateway)",
+      "targets": [{"expr": "rate(http_requests_total{job=\"gateway-service\"}[5m])", "legendFormat": "{{method}} {{handler}} - {{status}}", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 14, "w": 12, "h": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "HTTP Requests (Patient)",
+      "targets": [{"expr": "rate(http_requests_total{job=\"patient-service\"}[5m])", "legendFormat": "{{method}} {{handler}} - {{status}}", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 14, "w": 12, "h": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "RabbitMQ Messages Delivered",
+      "targets": [{"expr": "rate(rabbitmq_channel_messages_delivered_total[5m])", "legendFormat": "Delivered", "refId": "A"}],
+      "gridPos": {"x": 0, "y": 22, "w": 12, "h": 8}
+    },
+    {
+      "type": "timeseries",
+      "title": "RabbitMQ Messages Published",
+      "targets": [{"expr": "rate(rabbitmq_channel_messages_published_total[5m])", "legendFormat": "Published", "refId": "A"}],
+      "gridPos": {"x": 12, "y": 22, "w": 12, "h": 8}
+    }
+  ],
+  "schemaVersion": 38
+}
