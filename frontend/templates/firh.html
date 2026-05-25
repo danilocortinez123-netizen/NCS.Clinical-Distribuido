@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga de Historia Clínica</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f0f4f8; min-height: 100vh; padding: 2rem; }
+        .container { max-width: 900px; margin: 0 auto; background: white; border-radius: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); overflow: hidden; }
+        .header { background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); color: white; padding: 2rem; }
+        .header h1 { font-size: 1.6rem; }
+        .header p { opacity: 0.9; margin-top: 0.5rem; }
+        .content { padding: 2rem; }
+        .form-group { margin-bottom: 1.5rem; }
+        label { display: block; font-size: 0.85rem; font-weight: 600; color: #4a5568; margin-bottom: 0.35rem; }
+        input, select, textarea { width: 100%; padding: 0.7rem 0.9rem; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 0.95rem; font-family: inherit; }
+        input:focus, select:focus, textarea:focus { outline: none; border-color: #38a169; box-shadow: 0 0 0 3px rgba(56,161,105,0.15); }
+        textarea { resize: vertical; min-height: 80px; }
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .btn-primary { width: 100%; padding: 0.9rem; background: linear-gradient(135deg, #38a169 0%, #2f855a 100%); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 600; cursor: pointer; }
+        .btn-primary:hover { transform: translateY(-2px); }
+        .btn-secondary { display: inline-block; padding: 0.7rem 1.5rem; background: #edf2f7; color: #4a5568; border-radius: 12px; text-decoration: none; margin-top: 1rem; }
+        .alert { padding: 1rem; border-radius: 10px; margin-top: 1rem; }
+        .alert-success { background: #c6f6d5; color: #276749; }
+        .alert-error { background: #fed7d7; color: #9b2c2c; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📝 Carga de Historia Clínica</h1>
+            <p>Registre un nuevo encuentro clínico para un paciente existente</p>
+        </div>
+        <div class="content">
+            <div class="form-group">
+                <label>ID del Paciente (FHIR)</label>
+                <input type="text" id="patientId" placeholder="Ej: 1001" value="1001">
+            </div>
+            <div class="form-group">
+                <label>Tipo de Encuentro</label>
+                <select id="encounterType">
+                    <option value="AMB">Ambulatorio</option>
+                    <option value="EMER">Emergencia</option>
+                    <option value="IMP">Hospitalización</option>
+                    <option value="VIRTUAL">Teleconsulta</option>
+                </select>
+            </div>
+            <div class="row">
+                <div class="form-group">
+                    <label>Fecha de Ingreso</label>
+                    <input type="datetime-local" id="fechaIngreso">
+                </div>
+                <div class="form-group">
+                    <label>Modalidad</label>
+                    <select id="modalidad">
+                        <option value="Presencial">Presencial</option>
+                        <option value="Telemedicina">Telemedicina</option>
+                        <option value="Domiciliaria">Domiciliaria</option>
+                    </select>
+                </div>
+            </div>
+            <div class="form-group">
+                <label>Causa de Atención</label>
+                <textarea id="causa" placeholder="Describa el motivo de la consulta..."></textarea>
+            </div>
+            <button class="btn-primary" onclick="cargarHC()">Guardar Historia Clínica</button>
+            <a href="/" class="btn-secondary">← Volver</a>
+            <div id="result"></div>
+        </div>
+    </div>
+    <script>
+        async function cargarHC() {
+            const btn = document.querySelector('.btn-primary');
+            btn.disabled = true; btn.textContent = 'Guardando...';
+            const data = {
+                encounter: {
+                    tipo_encuentro: document.getElementById('encounterType').value,
+                    fecha_ingreso: document.getElementById('fechaIngreso').value,
+                    modalidad: document.getElementById('modalidad').value,
+                    causa_atencion: document.getElementById('causa').value
+                }
+            };
+            try {
+                const res = await fetch(`/api/v1/clinical/${document.getElementById('patientId').value}/encounter`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await res.json();
+                if (res.ok) {
+                    document.getElementById('result').innerHTML = `<div class="alert alert-success">✅ Encuentro registrado: ID ${result.encounter_id || 'OK'}</div>`;
+                } else {
+                    document.getElementById('result').innerHTML = `<div class="alert alert-error">❌ Error: ${result.detail || JSON.stringify(result)}</div>`;
+                }
+            } catch(e) {
+                document.getElementById('result').innerHTML = `<div class="alert alert-error">❌ ${e.message}</div>`;
+            }
+            btn.disabled = false; btn.textContent = 'Guardar Historia Clínica';
+        }
+    </script>
+</body>
+</html>

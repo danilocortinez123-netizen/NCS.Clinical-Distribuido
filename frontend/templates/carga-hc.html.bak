@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga HC - Enterprise HIS</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <style>
+        :root { --ent-bg: #f8fafc; --ent-blue: #2563eb; --ent-dark: #1e293b; --ent-card: #ffffff; }
+        body { font-family: 'Inter', sans-serif; background: var(--ent-bg); margin: 0; display: flex; min-height: 100vh; }
+        .sidebar { width: 250px; background: var(--ent-dark); color: white; padding: 1.5rem; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 1.2rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; }
+        .nav-item { padding: 0.8rem 1rem; border-radius: 8px; color: #cbd5e1; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; transition: background 0.2s; }
+        .nav-item:hover, .nav-item.active { background: #334155; color: white; }
+        .main { flex: 1; padding: 2rem; overflow-y: auto; }
+        
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; padding: 1.5rem; margin-bottom: 1.5rem; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+        .form-group { display: flex; flex-direction: column; gap: 0.5rem; }
+        .form-group.full { grid-column: span 2; }
+        label { font-size: 0.85rem; font-weight: 600; color: #475569; }
+        input, select, textarea { padding: 0.6rem; border: 1px solid #cbd5e1; border-radius: 6px; font-family: inherit; }
+        
+        .btn { padding: 0.6rem 1.2rem; border-radius: 6px; font-weight: 600; cursor: pointer; border: 1px solid transparent; display:flex; align-items:center; justify-content:center; gap:0.5rem; }
+        .btn-primary { background: var(--ent-blue); color: white; }
+        .btn-success { background: #10b981; color: white; }
+        
+        .fhir-resource { border: 1px solid #e2e8f0; padding: 1rem; border-radius: 8px; margin-bottom: 1rem; background: #f8fafc; }
+        .fhir-resource h4 { margin: 0 0 1rem 0; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; }
+        
+        .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; margin-bottom: 1.5rem; }
+        .status-badge { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; color: #1e40af; }
+        
+        .sede-selector { display:flex; gap: 0.5rem; }
+        .sede-pill { padding: 0.4rem 1rem; border: 1px solid #cbd5e1; border-radius: 20px; cursor: pointer; font-size: 0.85rem; font-weight: 600; color: #64748b; background: white; transition: all 0.2s; }
+        .sede-pill.active { background: #eff6ff; border-color: #3b82f6; color: #1e40af; }
+        
+        #toast { visibility: hidden; min-width: 250px; background-color: #0f172a; color: #fff; text-align: center; border-radius: 6px; padding: 1rem; position: fixed; z-index: 1000; right: 30px; bottom: 30px; font-size: 0.9rem; box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); opacity: 0; transition: opacity 0.3s, bottom 0.3s; display: flex; align-items: center; gap: 0.5rem; }
+        #toast.show { visibility: visible; opacity: 1; bottom: 50px; }
+        #toast.success { background-color: #166534; }
+        #toast.error { background-color: #991b1b; }
+        #toast.warning { background-color: #854d0e; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2><i class="ph ph-heartbeat"></i> HIS Distribuido</h2>
+        <a href="/" class="nav-item"><i class="ph ph-squares-four"></i> Dashboard</a>
+        <a href="/registro-paciente" class="nav-item"><i class="ph ph-user-plus"></i> Registro Paciente</a>
+        <a href="/carga-hc" class="nav-item active"><i class="ph ph-file-text"></i> Carga Historia Clínica</a>
+        <a href="/consulta-hc" class="nav-item"><i class="ph ph-magnifying-glass"></i> Consulta de HC</a>
+    </div>
+    <div class="main">
+        <!-- Selector Global Sede Activa -->
+        <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <div style="display:flex; align-items:center; gap: 0.5rem; color: #475569;">
+                <i class="ph ph-map-pin" style="font-size: 1.2rem;"></i>
+                <strong>Sede Activa:</strong>
+            </div>
+            <div class="sede-selector" id="globalSedeSelector">
+                <div class="sede-pill active" data-sede="Sincelejo">Sincelejo</div>
+                <div class="sede-pill" data-sede="Bogotá">Bogotá</div>
+                <div class="sede-pill" data-sede="Medellín">Medellín</div>
+            </div>
+        </div>
+
+        <h1>Registro de Historia Clínica (FHIR R4)</h1>
+        
+        <div class="status-bar">
+            <div class="status-badge"><i class="ph ph-buildings"></i> Sede Origen: <span id="currentSede">Sincelejo</span></div>
+            <div class="status-badge" style="color:#166534"><i class="ph ph-cloud-check"></i> Estado Sync: Listo para enviar</div>
+        </div>
+        
+        <div class="card">
+            <h3 style="margin-top:0"><i class="ph ph-user"></i> Seleccionar Paciente</h3>
+            <div class="form-grid">
+                <div class="form-group full">
+                    <label>Buscar por Documento o Nombre</label>
+                    <div style="display:flex; gap:1rem">
+                        <input type="text" id="busqueda_pac" placeholder="Ingrese documento..." style="flex:1">
+                        <button class="btn btn-primary" onclick="buscarPaciente()"><i class="ph ph-magnifying-glass"></i> Buscar</button>
+                    </div>
+                </div>
+            </div>
+            <div id="paciente-info" style="margin-top:1rem; padding:1rem; background:#f0fdf4; border:1px solid #bbf7d0; border-radius:8px; display:none;">
+                <strong style="color:#166534">Paciente seleccionado:</strong> <span id="lbl_nombre_paciente"></span> (CC: <span id="lbl_doc_paciente"></span>)
+            </div>
+        </div>
+        
+        <div class="card" id="form-hc" style="opacity:0.5; pointer-events:none;">
+            <h3 style="margin-top:0"><i class="ph ph-file-text"></i> Carga de Recursos Clínicos</h3>
+            
+            <div class="fhir-resource">
+                <h4><i class="ph ph-calendar-plus"></i> Encounter (Encuentro Clínico)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Clase de Encuentro</label><select id="enc_class"><option value="AMB">Ambulatorio</option><option value="EMER">Emergencia</option><option value="IMP">Hospitalización</option></select></div>
+                    <div class="form-group"><label>Motivo de Consulta</label><input type="text" id="enc_reason"></div>
+                </div>
+            </div>
+            
+            <div class="fhir-resource">
+                <h4><i class="ph ph-thermometer"></i> Observation (Signos y Observaciones)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Peso (kg)</label><input type="number" id="obs_peso"></div>
+                    <div class="form-group"><label>Presión Arterial</label><input type="text" id="obs_bp" placeholder="Ej. 120/80"></div>
+                    <div class="form-group full"><label>Nota Clínica</label><textarea id="obs_nota" rows="2"></textarea></div>
+                </div>
+            </div>
+            
+            <div class="fhir-resource">
+                <h4><i class="ph ph-stethoscope"></i> Condition (Diagnóstico)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Código CIE-10</label><input type="text" id="cond_code" placeholder="Ej. J00"></div>
+                    <div class="form-group"><label>Descripción del Diagnóstico</label><input type="text" id="cond_desc"></div>
+                </div>
+            </div>
+            
+            <div class="fhir-resource">
+                <h4><i class="ph ph-pill"></i> MedicationRequest (Prescripción)</h4>
+                <div class="form-grid">
+                    <div class="form-group"><label>Medicamento</label><input type="text" id="med_name" placeholder="Ej. Acetaminofén 500mg"></div>
+                    <div class="form-group"><label>Dosificación</label><input type="text" id="med_dose" placeholder="Ej. Tomar 1 cada 8h"></div>
+                </div>
+            </div>
+            
+            <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem">
+                <button class="btn btn-outline" onclick="limpiar()"><i class="ph ph-eraser"></i> Limpiar</button>
+                <button class="btn btn-outline" onclick="guardarHC('local')" style="color:#2563eb; border-color:#bfdbfe;"><i class="ph ph-hard-drive"></i> Guardar Localmente</button>
+                <button class="btn btn-success" onclick="guardarHC('cloud')"><i class="ph ph-cloud-arrow-up"></i> Guardar y Sincronizar</button>
+            </div>
+        </div>
+    </div>
+    
+    <div id="toast"></div>
+    
+    <script src="/static/js/hybrid-simulation.js"></script>
+    <script>
+        let currentPatientId = null;
+        let activeSede = sessionStorage.getItem('activeSede') || 'Sincelejo';
+
+        function initGlobalSede() {
+            const selector = document.getElementById('globalSedeSelector');
+            function updatePills() {
+                selector.querySelectorAll('.sede-pill').forEach(p => {
+                    if (p.dataset.sede === activeSede) p.classList.add('active');
+                    else p.classList.remove('active');
+                });
+            }
+            updatePills();
+            selector.querySelectorAll('.sede-pill').forEach(pill => {
+                pill.addEventListener('click', (e) => {
+                    activeSede = e.target.dataset.sede;
+                    sessionStorage.setItem('activeSede', activeSede);
+                    updatePills();
+                });
+            });
+        }
+
+        function showToast(msg, type='info') {
+            const toast = document.getElementById('toast');
+            let icon = 'ph-info';
+            if(type==='success') icon = 'ph-check-circle';
+            if(type==='error') icon = 'ph-warning-circle';
+            if(type==='warning') icon = 'ph-warning';
+            
+            toast.className = `show ${type}`;
+            toast.innerHTML = `<i class="ph ${icon}" style="font-size:1.2rem"></i> ${msg}`;
+            setTimeout(() => { toast.className = toast.className.replace('show', ''); }, 4000);
+        }
+
+        async function buscarPaciente() {
+            const doc = document.getElementById('busqueda_pac').value;
+            if(!doc) { showToast('Ingrese documento', 'warning'); return; }
+            
+            try {
+                const res = await fetch(`/api/v1/patient/search/${doc}?sede=${activeSede}`);
+                const data = await res.json();
+                
+                if (data.found && data.source === 'local') {
+                    const patient = data.patient;
+                    currentPatientId = patient.id;
+                    
+                    document.getElementById('paciente-info').style.display = 'block';
+                    document.getElementById('lbl_nombre_paciente').innerText = `${patient.nombres} ${patient.apellidos}`;
+                    document.getElementById('lbl_doc_paciente').innerText = doc;
+                    document.getElementById('currentSede').innerText = patient.sede;
+                    
+                    document.getElementById('form-hc').style.opacity = '1';
+                    document.getElementById('form-hc').style.pointerEvents = 'auto';
+                } else if (data.found && data.source === 'remote') {
+                    showToast(`El paciente existe en la sede ${data.remote_source}. Por favor, impórtelo desde Consulta de HC antes de agregar observaciones locales.`, 'warning');
+                } else {
+                    showToast('Paciente no encontrado en la red.', 'warning');
+                }
+            } catch(e) {
+                console.error(e);
+                showToast("Error al buscar paciente.", 'error');
+            }
+        }
+        
+        function limpiar() {
+            document.querySelectorAll('#form-hc input, #form-hc textarea, #busqueda_pac').forEach(el => el.value = '');
+            document.getElementById('form-hc').style.opacity = '0.5';
+            document.getElementById('form-hc').style.pointerEvents = 'none';
+            document.getElementById('paciente-info').style.display = 'none';
+            currentPatientId = null;
+        }
+        
+        async function guardarHC(mode) {
+            if (!currentPatientId) return;
+            try {
+                const res = await fetch(`/api/v1/patient/${currentPatientId}`);
+                if (!res.ok) throw new Error("Paciente no cargado localmente.");
+                const p = await res.json();
+                
+                const recordData = {
+                    encounter: document.getElementById('enc_reason').value,
+                    observation: document.getElementById('obs_nota').value,
+                    condition: document.getElementById('cond_code').value,
+                    medication: document.getElementById('med_name').value,
+                    fecha: new Date().toISOString()
+                };
+                
+                // Uses gateway real_backend.py endpoint:
+                const saveRes = await fetch('/api/clinical-records', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        patient_id: p.id || p.patient_id,
+                        sede: p.sede || activeSede,
+                        encounter: {encounter: recordData.encounter},
+                        observations: {observation: recordData.observation},
+                        condition: {condition: recordData.condition},
+                        medication_request: {medication: recordData.medication}
+                    })
+                });
+                
+                if (!saveRes.ok) throw new Error("Error al guardar en base de datos local");
+                
+                let msjExtra = "Guardado localmente. Pendiente de sincronizar con Cloud Core.";
+                
+                if (mode === 'cloud') {
+                    try {
+                        const syncRes = await fetch('/api/v1/admin/outbox/process-pending', { method: 'POST' });
+                        const syncData = await syncRes.json();
+                        if (syncData.success) {
+                            msjExtra = "Guardado y sincronizado con Cloud Core.";
+                        } else {
+                            msjExtra = "Cloud Core no disponible. El registro quedó pendiente.";
+                        }
+                    } catch(e) {
+                        msjExtra = "Cloud Core no disponible. El registro quedó pendiente.";
+                    }
+                }
+                
+                showToast(msjExtra, 'success');
+                limpiar();
+            } catch (err) {
+                showToast(`Error al guardar: ${err.message}`, 'error');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', initGlobalSede);
+    </script>
+</body>
+</html>

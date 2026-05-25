@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enterprise Dashboard — Historia Clínica Distribuida</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <script src="/static/js/hybrid-simulation.js"></script>
+    <style>
+        :root { 
+            --ent-bg: #f8fafc; 
+            --ent-blue: #1e3a8a; 
+            --ent-light-blue: #eff6ff; 
+            --ent-dark: #0f172a; 
+            --ent-card: #ffffff; 
+            --ent-border: #e2e8f0;
+            --ent-text: #334155;
+            --ent-muted: #64748b;
+        }
+        body { font-family: 'Inter', sans-serif; background: var(--ent-bg); margin: 0; display: flex; min-height: 100vh; color: var(--ent-text); }
+        .sidebar { width: 250px; background: var(--ent-dark); color: white; padding: 1.5rem; display: flex; flex-direction: column; }
+        .sidebar h2 { font-size: 1.2rem; margin-bottom: 2rem; display: flex; align-items: center; gap: 0.5rem; color: #f8fafc; font-weight: 600; }
+        .nav-item { padding: 0.8rem 1rem; border-radius: 6px; color: #94a3b8; text-decoration: none; display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem; transition: all 0.2s; font-size: 0.95rem; }
+        .nav-item:hover, .nav-item.active { background: #1e293b; color: white; border-left: 3px solid var(--ent-blue); }
+        .main { flex: 1; padding: 2rem; overflow-y: auto; }
+        
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem; }
+        .header h1 { margin: 0; color: #0f172a; font-weight: 700; font-size: 1.8rem; }
+        
+        .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1.5rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--ent-card); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); padding: 1.5rem; border: 1px solid var(--ent-border); display: flex; align-items: center; gap: 1rem; }
+        .stat-icon { width: 48px; height: 48px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; }
+        .stat-icon.blue { background: #eff6ff; color: #2563eb; }
+        .stat-icon.green { background: #dcfce7; color: #166534; }
+        .stat-icon.yellow { background: #fef9c3; color: #854d0e; }
+        .stat-icon.red { background: #fee2e2; color: #991b1b; }
+        .stat-info h3 { margin: 0; font-size: 2rem; color: #0f172a; }
+        .stat-info p { margin: 0; color: #64748b; font-size: 0.9rem; font-weight: 600; }
+        
+        .grid-2 { display: grid; grid-template-columns: 2fr 1fr; gap: 1.5rem; }
+        .card { background: var(--ent-card); border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); border: 1px solid var(--ent-border); padding: 1.5rem; margin-bottom: 1.5rem; }
+        .card-title { font-size: 1.1rem; font-weight: 700; color: #0f172a; margin: 0 0 1.2rem 0; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--ent-border); padding-bottom: 0.8rem; }
+        
+        .badge { padding: 0.2rem 0.6rem; border-radius: 12px; font-size: 0.75rem; font-weight: 600; }
+        .badge-pending { background: var(--soft-yellow); color: var(--soft-yellow-text); }
+        .badge-success { background: var(--soft-green); color: var(--soft-green-text); }
+        .badge-error { background: var(--soft-red); color: var(--soft-red-text); }
+        
+        table { width: 100%; border-collapse: collapse; font-size: 0.9rem; }
+        th { text-align: left; padding: 0.8rem; border-bottom: 2px solid var(--ent-border); color: #64748b; font-weight: 600; }
+        td { padding: 0.8rem; border-bottom: 1px solid var(--ent-border); color: #334155; }
+        tr:hover td { background: #f8fafc; }
+        
+        .btn { padding: 0.6rem 1.2rem; border-radius: 4px; font-weight: 600; cursor: pointer; border: 1px solid transparent; display:inline-flex; align-items:center; gap:0.5rem; font-size: 0.9rem; transition: all 0.2s;}
+        .btn-outline { background: white; border-color: #cbd5e1; color: var(--ent-text); }
+        .btn-outline:hover { background: #f1f5f9; }
+        .btn-primary { background: var(--ent-blue); color: white; }
+        .btn-primary:hover { background: #172554; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-success { background: #15803d; color: white; }
+        
+        .arch-diagram { display: flex; align-items: center; justify-content: space-between; padding: 2rem; background: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 1.5rem; }
+        .arch-node { text-align: center; width: 120px; }
+        .arch-icon { width: 64px; height: 64px; background: white; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 0.5rem auto; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; color: #1e3a8a; }
+        .arch-label { font-weight: 600; font-size: 0.85rem; color: #334155; }
+        .arch-arrow { color: #94a3b8; font-size: 1.5rem; }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2><i class="ph ph-heartbeat"></i> HIS Distribuido</h2>
+        <a href="/" class="nav-item active"><i class="ph ph-squares-four"></i> Dashboard</a>
+        <a href="/registro-paciente" class="nav-item"><i class="ph ph-user-plus"></i> Registro Paciente</a>
+        <a href="/carga-hc" class="nav-item"><i class="ph ph-file-text"></i> Carga Historia Clínica</a>
+        <a href="/consulta-hc" class="nav-item"><i class="ph ph-magnifying-glass"></i> Consulta de HC</a>
+    </div>
+    
+    <div class="main">
+        <div class="header">
+            <h1>Command Center Enterprise</h1>
+            <div id="mode-badge" class="badge badge-success"><i class="ph ph-check-circle"></i> HÍBRIDO NORMAL</div>
+        </div>
+        
+        <div id="pending-warning" style="display:none; background: #fffbeb; border: 1px solid #fde68a; color: #b45309; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <i class="ph ph-warning" style="font-size: 1.2rem;"></i> Hay eventos pendientes de sincronización.
+            </div>
+            <button class="btn btn-primary" style="padding: 0.4rem 1rem; font-size: 0.85rem;" onclick="syncPending()">Procesar Eventos Pendientes</button>
+        </div>
+
+        <div id="node-warning" style="display:none; background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 1rem; border-radius: 8px; margin-bottom: 1.5rem; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 0.5rem; font-weight: 600;">
+                <i class="ph ph-warning-circle" style="font-size: 1.2rem;"></i> <span id="node-warning-text">Nodo caído detectado.</span>
+            </div>
+        </div>
+
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 1.5rem;">
+            <!-- Pacientes por Sede -->
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="ph ph-buildings"></i></div>
+                <div class="stat-info"><h3 id="count-sincelejo">0</h3><p>Sincelejo</p></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="ph ph-buildings"></i></div>
+                <div class="stat-info"><h3 id="count-bogota">0</h3><p>Bogotá</p></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon blue"><i class="ph ph-buildings"></i></div>
+                <div class="stat-info"><h3 id="count-medellin">0</h3><p>Medellín</p></div>
+            </div>
+            <div class="stat-card" style="border-color: #93c5fd; background: #eff6ff;">
+                <div class="stat-icon blue" style="background: white;"><i class="ph ph-cloud-check"></i></div>
+                <div class="stat-info"><h3 id="count-procesados" style="color: #1e3a8a;">0</h3><p style="color: #1e3a8a;">Interop. Cloud</p></div>
+            </div>
+        </div>
+        
+        <div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 2rem;">
+            <!-- Outbox y FHIR -->
+            <div class="stat-card">
+                <div class="stat-icon yellow"><i class="ph ph-hourglass-high"></i></div>
+                <div class="stat-info"><h3 id="stat-pending">0</h3><p>Pendientes Outbox</p></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green"><i class="ph ph-check-circle"></i></div>
+                <div class="stat-info"><h3 id="stat-processed">0</h3><p>Procesados Outbox</p></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon red"><i class="ph ph-warning-circle"></i></div>
+                <div class="stat-info"><h3 id="stat-failed">0</h3><p>Fallidos Outbox</p></div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-icon green" id="icon-fhir"><i class="ph ph-server"></i></div>
+                <div class="stat-info"><h3 id="stat-fhir" style="font-size: 1.2rem; margin-top: 0.5rem;">Activo</h3><p>Estado HAPI FHIR</p></div>
+            </div>
+        </div>
+
+        <div class="card" style="padding: 1.5rem;">
+            <h3 class="card-title"><i class="ph ph-share-network"></i> Flujo Transaccional Distribuido</h3>
+            <div class="arch-diagram" style="padding: 1rem; margin-bottom: 0;">
+                <div class="arch-node"><div class="arch-icon"><i class="ph ph-map-pin"></i></div><div class="arch-label">Sede Activa</div><div id="arch-st-sede" style="font-size:0.7rem; color:#166534; font-weight:bold;">Operativo</div></div>
+                <div class="arch-arrow"><i class="ph ph-arrow-right"></i></div>
+                <div class="arch-node"><div class="arch-icon"><i class="ph ph-database"></i></div><div class="arch-label">PostgreSQL Local</div><div id="arch-st-pg" style="font-size:0.7rem; color:#166534; font-weight:bold;">Operativo</div></div>
+                <div class="arch-arrow"><i class="ph ph-arrow-right"></i></div>
+                <div class="arch-node"><div class="arch-icon"><i class="ph ph-envelope-simple"></i></div><div class="arch-label">Outbox</div><div id="arch-st-outbox" style="font-size:0.7rem; color:#166534; font-weight:bold;">Operativo</div></div>
+                <div class="arch-arrow"><i class="ph ph-arrow-right"></i></div>
+                <div class="arch-node"><div class="arch-icon"><i class="ph ph-rabbit"></i></div><div class="arch-label">RabbitMQ</div><div id="arch-st-rmq" style="font-size:0.7rem; color:#166534; font-weight:bold;">Operativo</div></div>
+                <div class="arch-arrow"><i class="ph ph-arrow-right"></i></div>
+                <div class="arch-node"><div class="arch-icon"><i class="ph ph-cloud"></i></div><div class="arch-label">HAPI FHIR Cloud</div><div id="arch-st-cloud" style="font-size:0.7rem; color:#166534; font-weight:bold;">Operativo</div></div>
+            </div>
+        </div>
+
+        
+
+
+        <div class="grid-2">
+            <div class="card">
+                <h3 class="card-title"><i class="ph ph-list-dashes"></i> Eventos Outbox Recientes</h3>
+                <div style="overflow-x:auto;">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID Corto</th>
+                                <th>Tipo Evento</th>
+                                <th>Sede</th>
+                                <th>Estado</th>
+                                <th>Reintentos</th>
+                                <th>Fecha Creación</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-table-body">
+                            <tr><td colspan="6" style="text-align:center">Cargando eventos...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <div class="card">
+                <h3 class="card-title"><i class="ph ph-activity"></i> Panel de Simulación y Control</h3>
+                <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 1rem;">Permite demostrar operación offline, tolerancia a fallos y sincronización eventual.</p>
+                <div style="display:flex; flex-direction:column; gap:0.5rem">
+                    <button class="btn btn-primary" style="justify-content:center; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="syncPending()"><i class="ph ph-arrows-clockwise"></i> Procesar Eventos Pendientes</button>
+                    <hr style="border:0; border-top:1px solid #e2e8f0; width:100%; margin: 0.5rem 0">
+                    <button class="btn btn-outline" style="justify-content:flex-start; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="simulateFailure('Sincelejo')"><i class="ph ph-power" style="color:#ef4444"></i> Caída Sincelejo</button>
+                    <button class="btn btn-outline" style="justify-content:flex-start; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="simulateFailure('Bogotá')"><i class="ph ph-power" style="color:#ef4444"></i> Caída Bogotá</button>
+                    <button class="btn btn-outline" style="justify-content:flex-start; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="simulateFailure('Medellín')"><i class="ph ph-power" style="color:#ef4444"></i> Caída Medellín</button>
+                    <button class="btn btn-outline" style="justify-content:flex-start; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="simulateFailure('Cloud')"><i class="ph ph-cloud-slash" style="color:#ef4444"></i> Caída Cloud</button>
+                    <button class="btn btn-outline" style="justify-content:flex-start; background: #f0fdf4; border-color: #bbf7d0; padding: 0.4rem 0.8rem; font-size: 0.85rem;" onclick="restoreAll()"><i class="ph ph-arrows-out-line-vertical" style="color:#166534"></i> Restaurar Todo</button>
+                </div>
+            </div>
+           <script>
+        let simulatedNodes = { 'Sincelejo': true, 'Bogotá': true, 'Medellín': true, 'Cloud': true };
+
+        async function updateDashboard() {
+            try {
+                const res = await fetch('/api/v1/admin/dashboard/status');
+                if (!res.ok) throw new Error("Dashboard fetch failed");
+                const stats = await res.json();
+                
+                let fallenNodes = [];
+                // Update Nodos
+                ['Sincelejo', 'Bogotá', 'Medellín'].forEach(sede => {
+                    const sedeData = stats.sedes[sede] || { patients: 0, clinical_records: 0 };
+                    const isActivo = simulatedNodes[sede];
+                    if (!isActivo) fallenNodes.push(sede);
+                    
+                    document.getElementById(`count-${sede.toLowerCase().replace('á','a').replace('í','i')}`).innerText = isActivo ? sedeData.patients : 'OFF';
+                    const iconEl = document.getElementById(`count-${sede.toLowerCase().replace('á','a').replace('í','i')}`).parentElement.previousElementSibling;
+                    if (!isActivo) {
+                        iconEl.className = 'stat-icon red';
+                    } else {
+                        iconEl.className = 'stat-icon blue';
+                    }
+                });
+                
+                document.getElementById('count-procesados').innerText = stats.outbox.processed || 0;
+                document.getElementById('stat-pending').innerText = stats.outbox.pending || 0;
+                document.getElementById('stat-processed').innerText = stats.outbox.processed || 0;
+                document.getElementById('stat-failed').innerText = stats.outbox.failed || 0;
+                
+                // Check if pending > 0 to show warning
+                if (stats.outbox.pending > 0) {
+                    document.getElementById('pending-warning').style.display = 'flex';
+                    document.getElementById('arch-st-outbox').innerText = 'Pendiente';
+                    document.getElementById('arch-st-outbox').style.color = '#b45309';
+                } else {
+                    document.getElementById('pending-warning').style.display = 'none';
+                    document.getElementById('arch-st-outbox').innerText = 'Operativo';
+                    document.getElementById('arch-st-outbox').style.color = '#166534';
+                }
+
+                const isCloudActivo = stats.cloud.hapi_fhir === 'online' && simulatedNodes['Cloud'];
+                if (!isCloudActivo) fallenNodes.push('HAPI FHIR Cloud');
+                document.getElementById('stat-fhir').innerText = isCloudActivo ? 'Activo' : 'Offline';
+                document.getElementById('icon-fhir').className = isCloudActivo ? 'stat-icon green' : 'stat-icon red';
+                
+                document.getElementById('arch-st-cloud').innerText = isCloudActivo ? 'Conectado' : 'Offline';
+                document.getElementById('arch-st-cloud').style.color = isCloudActivo ? '#166534' : '#b91c1c';
+
+                if (fallenNodes.length > 0) {
+                    document.getElementById('node-warning').style.display = 'flex';
+                    document.getElementById('node-warning-text').innerText = 'Componentes desconectados o en falla: ' + fallenNodes.join(', ');
+                } else {
+                    document.getElementById('node-warning').style.display = 'none';
+                }
+                
+                // Load recent events
+                const evRes = await fetch('/api/v1/admin/dashboard/recent-events');
+                if (evRes.ok) {
+                    const evData = await evRes.json();
+                    let html = '';
+                    if (!evData.events || evData.events.length === 0) {
+                        html = '<tr><td colspan="6" style="text-align:center">Sin eventos recientes</td></tr>';
+                    } else {
+                        evData.events.forEach(ev => {
+                            let badgeClass = ev.status === 'processed' ? 'badge-success' : (ev.status === 'pending' ? 'badge-pending' : 'badge-error');
+                            html += `
+                            <tr style="border-bottom:1px solid #e2e8f0;">
+                                <td style="padding:0.5rem; font-size:0.8rem; font-family:monospace;">${ev.event_id.split('-')[0]}...</td>
+                                <td style="font-size:0.85rem; font-weight:bold;">${ev.event_type}</td>
+                                <td>${ev.sede || 'Sincelejo'}</td>
+                                <td><span class="badge ${badgeClass}">${ev.status}</span></td>
+                                <td style="text-align:center;">${ev.retry_count}</td>
+                                <td style="font-size:0.8rem;">${new Date(ev.created_at).toLocaleString()}</td>
+                            </tr>
+                            `;
+                        });
+                    }
+                    document.getElementById('events-table-body').innerHTML = html;
+                }
+            } catch (e) {
+                console.error("Error updating dashboard", e);
+            }
+        }
+
+        updateDashboard();
+        setInterval(updateDashboard, 5000);
+
+        async function syncPending() {
+            try {
+                const res = await fetch('/api/v1/admin/outbox/process-pending', { method: 'POST' });
+                const data = await res.json();
+                if (data.success) {
+                    updateDashboard();
+                }
+            } catch(e) {
+                console.error(e);
+            }
+        }
+
+        function simulateFailure(node) {
+            simulatedNodes[node] = false;
+            updateDashboard();
+        }
+
+        function restoreAll() {
+            for (let k in simulatedNodes) simulatedNodes[k] = true;
+            updateDashboard();
+        }ng all nodes");
+        }
+        
+        window.toggleNode = simulateFailure;
+        window.procesarEventos = syncPending;
+    </script>
+</body>
+</html>
