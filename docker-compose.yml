@@ -135,6 +135,12 @@ services:
     depends_on:
       - patient-service
       - clinical-service
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     networks:
       - historia_clinica_net
@@ -154,6 +160,12 @@ services:
         condition: service_started
       hapi-fhir:
         condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8002/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     networks:
       - historia_clinica_net
@@ -176,6 +188,12 @@ services:
         condition: service_healthy
       pg_nodo3:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8003/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
     restart: unless-stopped
     networks:
       - historia_clinica_net
@@ -199,6 +217,12 @@ services:
         condition: service_healthy
       pg_nodo1:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8004/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 25s
     restart: unless-stopped
     networks:
       - historia_clinica_net

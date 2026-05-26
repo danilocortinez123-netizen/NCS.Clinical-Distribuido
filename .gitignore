@@ -1,3 +1,4 @@
+.env
 .env/
 .venv/
 __pycache__/
@@ -5,6 +6,8 @@ __pycache__/
 *.pyo
 *.log
 *.bak
+*.bak.prom
+*.bak2
 *.sql
 backup_*.sql
 backups/
