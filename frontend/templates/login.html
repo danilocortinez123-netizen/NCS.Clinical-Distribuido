@@ -7,21 +7,21 @@
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0f172a;
-    --card: #1e293b;
-    --border: #334155;
-    --blue: #3b82f6;
+    --bg: #f8fafc;
+    --card: #ffffff;
+    --border: #e2e8f0;
+    --blue: #2563eb;
     --blue-dark: #1d4ed8;
-    --text: #f1f5f9;
-    --muted: #94a3b8;
-    --input-bg: #0f172a;
+    --text: #334155;
+    --muted: #64748b;
+    --input-bg: #ffffff;
     --error: #ef4444;
     --success: #22c55e;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body {
     font-family: 'Inter', sans-serif;
-    background: var(--bg);
+    background: #0f172a; /* Mantiene fondo exterior oscuro para login */
     min-height: 100vh;
     display: flex;
     align-items: center;
@@ -234,8 +234,8 @@
 <div class="login-wrap">
   <div class="logo-area">
     <div class="logo-icon">🏥</div>
-    <div class="logo-title">HIS Distribuido</div>
-    <div class="logo-sub">Sistema de Historia Clínica Distribuida v3.0</div>
+    <div class="logo-title" style="color: white;">HIS Distribuido</div>
+    <div class="logo-sub">Command Center Clínico</div>
   </div>
 
   <div class="card">
@@ -275,18 +275,10 @@
 
     <!-- Demo credentials hint -->
     <div class="demo-hint">
-      <div class="demo-hint-title">🧪 Credenciales de demostración (clic para autocompletar)</div>
+      <div class="demo-hint-title">🧪 Credencial de Administrador (clic para autocompletar)</div>
       <div class="demo-cred" onclick="fill('admin','admin123')">
-        <span>Administrador</span>
+        <span>Administrador Demo</span>
         <code>admin / admin123</code>
-      </div>
-      <div class="demo-cred" onclick="fill('medico','medico123')">
-        <span>Médico</span>
-        <code>medico / medico123</code>
-      </div>
-      <div class="demo-cred" onclick="fill('enfermera','enfermera123')">
-        <span>Enfermería</span>
-        <code>enfermera / enfermera123</code>
       </div>
     </div>
   </div>
