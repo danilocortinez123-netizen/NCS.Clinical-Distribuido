@@ -146,6 +146,8 @@ async def search_patient(identifier: str, sede: Optional[str] = None):
 @router.post("/import")
 async def import_patient(req: ImportRequest):
     try:
+        import logging
+        logging.info(f"[IMPORT] Iniciando importación de doc {req.documento} hacia sede destino real: {req.target_sede}")
         # Idempotency check: if already local or already imported
         local_patient = patient_repository.get_patient_local(req.documento)
         if local_patient:

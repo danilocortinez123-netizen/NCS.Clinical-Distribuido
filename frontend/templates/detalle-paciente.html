@@ -278,11 +278,23 @@
                 `;
                 
                 if (p.sync_status === 'IMPORTED_FROM_REMOTE') {
+                    // Buscar en el timeline si existe un evento importado para sacar el target_site real
+                    let targetSede = null;
+                    if (p.timeline && p.timeline.length > 0) {
+                        const importEvent = p.timeline.find(t => t.event_type === 'patient.imported' || t.event_type === 'PatientImportedFromRemoteSite');
+                        if (importEvent) {
+                            targetSede = importEvent.target_site || importEvent.target_sede || importEvent.sede;
+                        }
+                    }
+                    if (!targetSede) {
+                        targetSede = typeof getCurrentSedeSafe === 'function' ? getCurrentSedeSafe() : p.sede;
+                    }
+
                     tlHtml += `
                         <div class="tl-item sync">
                             <div class="tl-time">${new Date(p.created_at || new Date()).toLocaleString('es-CO')}</div>
                             <div class="tl-title">Importación desde Red Distribuida</div>
-                            <div class="tl-desc">El paciente fue importado exitosamente a la sede activa (${p.sede}).</div>
+                            <div class="tl-desc">El paciente fue importado exitosamente a la sede activa (${targetSede}).</div>
                         </div>
                     `;
                 }

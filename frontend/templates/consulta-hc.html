@@ -363,7 +363,7 @@
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
                         documento: doc,
-                        target_sede: activeSede,
+                        target_sede: typeof getCurrentSedeSafe === 'function' ? getCurrentSedeSafe() : activeSede,
                         source: source
                     })
                 });
