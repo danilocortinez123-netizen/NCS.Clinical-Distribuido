@@ -42,3 +42,10 @@ requirements-dev.txt
 archive/
 database/
 hybrid-deployment/
+
+# Backups y scripts temporales visuales
+*.bak5
+fix_html.py
+fix_html_str.py
+fix_sidebar_classes.py
+fix_visuals.py
