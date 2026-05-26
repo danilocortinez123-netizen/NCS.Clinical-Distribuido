@@ -201,7 +201,19 @@
                         return;
                     }
                     
-                    if (data.source === 'local') {
+                    if (data.already_local && data.patient?.sync_status === 'IMPORTED_FROM_REMOTE') {
+                        resultsDiv.innerHTML = `
+                            <div style="text-align:center; padding: 2rem; background: #f0fdf4; border-radius: 8px; border: 1px solid #bbf7d0; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                                <i class="ph ph-check-circle" style="font-size: 3rem; color: #16a34a; margin-bottom: 1rem;"></i>
+                                <h3 style="color: #14532d; margin-top:0;">Paciente ya existe en esta sede</h3>
+                                <p style="color: #166534; margin-bottom: 0.5rem;">Origen: <strong>${data.patient?.sede || 'Desconocido'}</strong> <span class="badge" style="background:#dcfce7;color:#166534;margin-left:5px">Ya existe en esta sede</span></p>
+                                <p style="color: #166534; margin-bottom: 1.5rem;">Este paciente ya fue importado previamente. No es necesario importarlo otra vez.</p>
+                                <a href="/paciente/${data.patient?.id || data.patient?.patient_id || doc}" class="btn btn-success" style="text-decoration:none;"><i class="ph ph-folder-open"></i> Abrir HC</a>
+                            </div>`;
+                        return;
+                    }
+                    
+                    if (data.source === 'local' || data.already_local) {
                         renderPatientList([data.patient]);
                     } else if (data.source === 'blocked') {
                         // Patient exists but PENDIENTE_SYNC - cannot import yet
@@ -231,7 +243,7 @@
                                 <h3 style="color: #0f172a; margin-top:0;">Paciente encontrado en Cloud FHIR</h3>
                                 <p style="color: #64748b; margin-bottom: 0.5rem;">Origen: <strong>${data.remote_source}</strong></p>
                                 <p style="color: #64748b; margin-bottom: 1.5rem;">Campos disponibles: ${data.available_fields}</p>
-                                <button class="btn btn-primary" onclick="importarPaciente('${doc}', '${data.remote_source}')"><i class="ph ph-download"></i> Importar paciente e historia clínica</button>
+                                <button id="btn-import-${doc}" class="btn btn-primary" onclick="importarPaciente('${doc}', '${data.remote_source}')"><i class="ph ph-download"></i> Importar paciente e historia clínica</button>
                             </div>`;
                     }
                     return;
@@ -333,6 +345,13 @@
         }
         
         async function importarPaciente(doc, source) {
+            const btn = document.getElementById(`btn-import-${doc}`);
+            if (btn) {
+                if (btn.disabled) return;
+                btn.disabled = true;
+                btn.innerHTML = '<i class="ph ph-spinner ph-spin"></i> Importando...';
+            }
+            
             try {
                 const importRes = await fetch('/api/v1/patient/import', {
                     method: 'POST',
@@ -346,12 +365,29 @@
                 const importData = await importRes.json();
                 if (importData.success) {
                     showToast(importData.message || `Importación exitosa a ${activeSede}. Evento generado.`, 'success');
-                    setTimeout(() => window.location.href = `/paciente/${importData.patient_id}`, 1500);
+                    
+                    if (importData.already_local) {
+                        if (btn) {
+                            btn.innerHTML = '<i class="ph ph-check"></i> Ya existe en esta sede';
+                            btn.className = 'btn btn-success';
+                            setTimeout(() => window.location.href = `/paciente/${importData.patient_id}`, 1500);
+                        }
+                    } else {
+                        setTimeout(() => window.location.href = `/paciente/${importData.patient_id}`, 1500);
+                    }
                 } else {
                     showToast("Error al importar.", 'error');
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="ph ph-download"></i> Importar paciente e historia clínica';
+                    }
                 }
             } catch(e) {
                 showToast("Error de red al importar.", 'error');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="ph ph-download"></i> Importar paciente e historia clínica';
+                }
             }
         }
     </script>

@@ -76,27 +76,44 @@ async def search_patient(identifier: str, sede: Optional[str] = None):
                 # KEY RULE: Only SYNCED patients can be imported from other sedes
                 if sync_status == "PENDIENTE_SYNC":
                     return {
+                        "exists": True,
                         "found": True,
                         "source": "blocked",
                         "blocked_reason": "PENDIENTE_SYNC",
                         "message": f"Paciente no disponible en la red. Está pendiente de sincronización en su nodo origen ({local_patient.get('sede')}). Debe procesarse el Outbox primero.",
                         "patient": {"sede_origen": local_patient.get("sede"), "sync_status": sync_status},
                         "needs_import": False,
+                        "already_local": False,
                         "available_fields": 0
                     }
-                # SINCRONIZADO or IMPORTED_FROM_REMOTE: can be imported
+                
+                if sync_status == "IMPORTED_FROM_REMOTE":
+                    return {
+                        "exists": True,
+                        "found": True,
+                        "source": "local",
+                        "needs_import": False,
+                        "already_local": True,
+                        "patient": local_patient
+                    }
+
+                # SINCRONIZADO: can be imported
                 return {
+                    "exists": True,
                     "found": True,
                     "source": "remote",
                     "remote_source": local_patient.get("sede"),
                     "needs_import": True,
+                    "already_local": False,
                     "patient": local_patient,
                     "available_fields": 57
                 }
             return {
+                "exists": True,
                 "found": True,
                 "source": "local",
                 "needs_import": False,
+                "already_local": True,
                 "patient": local_patient
             }
             
@@ -105,18 +122,22 @@ async def search_patient(identifier: str, sede: Optional[str] = None):
         if fhir_results.get("total", 0) > 0 and fhir_results.get("entry"):
             remote_patient = fhir_results["entry"][0]["resource"]
             return {
+                "exists": True,
                 "found": True,
                 "source": "remote",
                 "remote_source": "HAPI_FHIR",
                 "needs_import": True,
+                "already_local": False,
                 "patient": remote_patient,
                 "available_fields": 57
             }
             
         return {
+            "exists": False,
             "found": False,
             "source": "none",
             "needs_import": False,
+            "already_local": False,
             "message": "Paciente no encontrado. Puede registrarlo."
         }
     except Exception as e:
@@ -125,6 +146,18 @@ async def search_patient(identifier: str, sede: Optional[str] = None):
 @router.post("/import")
 async def import_patient(req: ImportRequest):
     try:
+        # Idempotency check: if already local or already imported
+        local_patient = patient_repository.get_patient_local(req.documento)
+        if local_patient:
+            if local_patient.get("sede", "").lower() == req.target_sede.lower() or local_patient.get("sync_status") == "IMPORTED_FROM_REMOTE":
+                return {
+                    "success": True,
+                    "message": "Paciente ya existe en esta sede. No se importó nuevamente.",
+                    "already_local": True,
+                    "needs_import": False,
+                    "patient_id": local_patient.get("id")
+                }
+
         # If FHIR resource is not provided, fetch it
         resource = req.fhir_resource
         if not resource:
