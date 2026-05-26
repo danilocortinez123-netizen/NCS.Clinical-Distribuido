@@ -417,15 +417,16 @@ async function updateDashboard() {
     // Update Node Cards
     ['sincelejo', 'bogotá', 'medellín'].forEach(node => {
         const idSfx = node.replace('á', 'a').replace('í', 'i');
-        const p_pend = (d.pending_by_node && d.pending_by_node[node]) || 0;
-        const p_proc = (d.processed_by_node && d.processed_by_node[node]) || 0;
-        const p_fail = (d.failed_by_node && d.failed_by_node[node]) || 0;
+        const properNode = node.charAt(0).toUpperCase() + node.slice(1);
+        const p_pend = (d.pending_by_node && (d.pending_by_node[properNode] ?? d.pending_by_node[node])) || 0;
+        const p_proc = (d.processed_by_node && (d.processed_by_node[properNode] ?? d.processed_by_node[node])) || 0;
+        const p_fail = (d.failed_by_node && (d.failed_by_node[properNode] ?? d.failed_by_node[node])) || 0;
         
         document.getElementById(`node-pend-${idSfx}`).textContent = p_pend;
         document.getElementById(`node-proc-${idSfx}`).textContent = p_proc;
         document.getElementById(`node-fail-${idSfx}`).textContent = p_fail;
         
-        const nodeState = (d.nodes && (d.nodes[node.charAt(0).toUpperCase() + node.slice(1)] || d.nodes[node])) || 'ACTIVO';
+        const nodeState = (d.nodes && (d.nodes[properNode] || d.nodes[node])) || 'ACTIVO';
         
         const badge = document.getElementById(`node-st-${idSfx}`);
         if (nodeState === 'OFFLINE') {
