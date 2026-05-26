@@ -318,7 +318,29 @@
                 }
 
                 if (p.timeline && p.timeline.length > 0) {
+                    const uniqueTimeline = [];
+                    const seenKeys = new Set();
+                    
                     p.timeline.forEach(t => {
+                        // Skip patient events for this deduplication as they are handled elsewhere
+                        if (t.event_type && t.event_type.startsWith('patient.')) {
+                            uniqueTimeline.push(t);
+                            return;
+                        }
+                        
+                        const key = JSON.stringify({
+                            enc: t.encounter?.causa_atencion || t.encounter?.reason || t.encounter?.reasonCode?.[0]?.text,
+                            cond: t.condition?.diagnostico_ingreso || t.condition?.primary_desc || t.condition?.code?.text,
+                            med: t.medication?.descripcion_medicamento || t.medication?.prescription || t.medication?.medicationCodeableConcept?.text
+                        });
+                        
+                        if (!seenKeys.has(key)) {
+                            seenKeys.add(key);
+                            uniqueTimeline.push(t);
+                        }
+                    });
+
+                    uniqueTimeline.forEach(t => {
                         let fhirTypes = [];
                         if (t.encounter && Object.keys(t.encounter).length > 0) {
                             fhirTypes.push('Encounter');

@@ -73,8 +73,8 @@ class ClinicalEventHandler:
                     "code": "AMB"
                 },
                 "subject": {"reference": f"Patient/{patient_id}"},
-                "period": {"start": enc_data.get("fecha_ingreso")},
-                "reasonCode": [{"text": enc_data.get("causa_atencion")}]
+                "period": {"start": enc_data.get("fecha_ingreso", enc_data.get("history", ""))} ,
+                "reasonCode": [{"text": enc_data.get("causa_atencion", enc_data.get("reason", ""))}]
             }
             enc_res = await self._send_to_fhir("Encounter", encounter_fhir, "POST")
             enc_id = enc_res.get("id")
@@ -100,7 +100,7 @@ class ClinicalEventHandler:
                     "clinicalStatus": {"coding": [{"system": "http://terminology.hl7.org/CodeSystem/condition-clinical", "code": "active"}]},
                     "subject": {"reference": f"Patient/{patient_id}"},
                     "encounter": {"reference": f"Encounter/{enc_id}"},
-                    "code": {"text": cond_data.get("diagnostico_ingreso", "Diagnóstico General")}
+                    "code": {"text": cond_data.get("diagnostico_ingreso", cond_data.get("primary_desc", "Diagnóstico General"))}
                 }
                 await self._send_to_fhir("Condition", condition_fhir, "POST")
 
@@ -113,7 +113,7 @@ class ClinicalEventHandler:
                     "intent": "order",
                     "subject": {"reference": f"Patient/{patient_id}"},
                     "encounter": {"reference": f"Encounter/{enc_id}"},
-                    "medicationCodeableConcept": {"text": med_data.get("descripcion_medicamento", "Medicamento recetado")}
+                    "medicationCodeableConcept": {"text": med_data.get("descripcion_medicamento", med_data.get("prescription", "Medicamento recetado"))}
                 }
                 await self._send_to_fhir("MedicationRequest", medication_fhir, "POST")
 
