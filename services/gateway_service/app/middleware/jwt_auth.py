@@ -9,12 +9,14 @@ from ..config import settings
 PUBLIC_PATHS = {
     "/",
     "/health",
+    "/login",
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/docs",
     "/openapi.json",
     "/static",
     "/favicon.ico",
+    "/metrics",
 }
 
 

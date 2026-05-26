@@ -1,12 +1,68 @@
 import json
 import uuid
 import psycopg2
+import jwt as pyjwt
+import datetime
 from psycopg2.extras import RealDictCursor
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from typing import Any, List, Optional
 import os
 
+# ─── Auth router (prefix diferente para evitar duplicación) ────────────────────
+auth_router = APIRouter(prefix="/api/v1/auth", tags=["Authentication"])
+
+JWT_SECRET = os.environ.get("JWT_SECRET_KEY", "super-secret-key-change-in-production")
+JWT_ALGORITHM = "HS256"
+JWT_EXPIRE_HOURS = 8
+
+# Demo credentials — for academic demo only
+DEMO_USERS = {
+    "admin": {"password": "admin123", "role": "admin", "name": "Administrador HIS"},
+    "medico": {"password": "medico123", "role": "medico", "name": "Dr. Demo"},
+    "enfermera": {"password": "enfermera123", "role": "enfermera", "name": "Enf. Demo"},
+}
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@auth_router.post("/login")
+async def login(req: LoginRequest):
+    user = DEMO_USERS.get(req.username)
+    if not user or user["password"] != req.password:
+        raise HTTPException(status_code=401, detail="Credenciales incorrectas")
+
+    now = datetime.datetime.utcnow()
+    payload = {
+        "sub": req.username,
+        "role": user["role"],
+        "name": user["name"],
+        "iat": now,
+        "exp": now + datetime.timedelta(hours=JWT_EXPIRE_HOURS),
+    }
+    token = pyjwt.encode(payload, JWT_SECRET, algorithm=JWT_ALGORITHM)
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "expires_in": JWT_EXPIRE_HOURS * 3600,
+        "user": {
+            "username": req.username,
+            "role": user["role"],
+            "name": user["name"],
+        },
+    }
+
+
+@auth_router.get("/me")
+async def me_placeholder():
+    """Placeholder — validated by JWTAuthMiddleware upstream."""
+    return {"message": "Token válido"}
+
+
+# ─── Main API router ────────────────────────────────────────────────────────────
 router = APIRouter(prefix="/api", tags=["Real Backend API"])
 
 DB_HOST = os.environ.get("LOCAL_DB_HOST", "pg_nodo1")

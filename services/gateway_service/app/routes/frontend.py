@@ -8,12 +8,16 @@ FRONTEND_DIR = "/app/frontend/templates"
 
 PAGES = {
     "/": "index.html",
+    "/login": "login.html",
     "/carga-hc": "carga-hc.html",
     "/consulta-hc": "consulta-hc.html",
     "/registro-paciente": "registro-paciente.html",
     "/hc": "firh.html",
     "/firh": "firh.html",
 }
+
+@router.get("/login", response_class=HTMLResponse)
+@router.get("/login/", response_class=HTMLResponse)
 
 @router.get("/", response_class=HTMLResponse)
 @router.get("/carga-hc", response_class=HTMLResponse)

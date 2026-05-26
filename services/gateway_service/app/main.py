@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .middleware.jwt_auth import JWTAuthMiddleware
 from .routes import proxy, frontend, real_backend
+from .routes.real_backend import auth_router
 
 app = FastAPI(
     title="Historia Clínica Distribuida - API Gateway",
@@ -28,6 +29,7 @@ import asyncio
 import time
 from .routes.real_backend import get_db_conn
 
+app.include_router(auth_router)          # POST /api/v1/auth/login (public)
 app.include_router(frontend.router)
 app.include_router(proxy.router)
 app.include_router(real_backend.router)
