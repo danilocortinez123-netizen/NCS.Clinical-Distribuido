@@ -1,0 +1,366 @@
+{
+  "info": {
+    "_postman_id": "his-distribuido-v3",
+    "name": "HIS Distribuido v3.0 — API Collection",
+    "description": "Colección completa de endpoints del Sistema de Historia Clínica Distribuida.\nArquitectura: Gateway (8001) → Microservicios → HAPI FHIR (8080) | RabbitMQ | PostgreSQL x3\n\nCredenciales demo: admin / admin123",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:8001", "type": "string" },
+    { "key": "fhir_url", "value": "http://localhost:8080/fhir", "type": "string" },
+    { "key": "token", "value": "", "type": "string", "description": "JWT Bearer token (se llena automáticamente al hacer login)" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+  "item": [
+    {
+      "name": "🔐 Autenticación",
+      "item": [
+        {
+          "name": "POST Login (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const data = pm.response.json();",
+                  "if (data.access_token) {",
+                  "  pm.collectionVariables.set('token', data.access_token);",
+                  "  pm.test('Login exitoso', () => pm.response.to.have.status(200));",
+                  "  console.log('Token guardado:', data.access_token.substring(0,40)+'...');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"] }
+          }
+        },
+        {
+          "name": "POST Login (medico)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"username\": \"medico\",\n  \"password\": \"medico123\"\n}" },
+            "url": { "raw": "{{base_url}}/api/v1/auth/login", "host": ["{{base_url}}"], "path": ["api","v1","auth","login"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏥 Sistema — Health",
+      "item": [
+        {
+          "name": "GET Gateway Health",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/health", "host": ["{{base_url}}"], "path": ["health"] }
+          }
+        },
+        {
+          "name": "GET Dashboard Status",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/dashboard/status", "host": ["{{base_url}}"], "path": ["api","dashboard","status"] }
+          }
+        },
+        {
+          "name": "GET Métricas Prometheus (/metrics)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/metrics", "host": ["{{base_url}}"], "path": ["metrics"] }
+          }
+        },
+        {
+          "name": "GET Nodos BD Estado",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/nodes/status", "host": ["{{base_url}}"], "path": ["api","nodes","status"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "👤 Pacientes",
+      "item": [
+        {
+          "name": "POST Crear Paciente (Sincelejo)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sede\": \"Sincelejo\",\n  \"documento\": \"1098765432\",\n  \"nombres\": \"Carlos Andrés\",\n  \"apellidos\": \"Martínez Pérez\",\n  \"fecha_nacimiento\": \"1985-03-12\",\n  \"sexo\": \"M\",\n  \"campos_clinicos\": {\n    \"eps\": \"Nueva EPS\",\n    \"municipio\": \"Sincelejo\",\n    \"telefono\": \"3001234567\"\n  }\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/patient/", "host": ["{{base_url}}"], "path": ["api","v1","patient",""] }
+          }
+        },
+        {
+          "name": "GET Buscar Paciente por Documento",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/patient/search/1098765432?sede=Sincelejo",
+              "host": ["{{base_url}}"],
+              "path": ["api","v1","patient","search","1098765432"],
+              "query": [{ "key": "sede", "value": "Sincelejo" }]
+            }
+          }
+        },
+        {
+          "name": "GET Obtener Paciente por ID",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/patient/:patient_id", "host": ["{{base_url}}"], "path": ["api","v1","patient",":patient_id"], "variable": [{ "key": "patient_id", "value": "P-abc123" }] }
+          }
+        },
+        {
+          "name": "GET Listar Pacientes",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/v1/patient/list?sede=Sincelejo",
+              "host": ["{{base_url}}"],
+              "path": ["api","v1","patient","list"],
+              "query": [{ "key": "sede", "value": "Sincelejo" }]
+            }
+          }
+        },
+        {
+          "name": "POST Importar Paciente cross-sede (desde FHIR)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"documento\": \"1098765432\",\n  \"target_sede\": \"Bogotá\",\n  \"source\": \"HAPI_FHIR\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/patient/import", "host": ["{{base_url}}"], "path": ["api","v1","patient","import"] }
+          }
+        },
+        {
+          "name": "GET Health FHIR (via patient-service)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/patient/health/fhir", "host": ["{{base_url}}"], "path": ["api","v1","patient","health","fhir"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "📋 Historia Clínica",
+      "item": [
+        {
+          "name": "POST Registro Clínico Completo (Gateway)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"P-abc123\",\n  \"sede\": \"Sincelejo\",\n  \"encounter\": {\n    \"class\": \"Urgencias\",\n    \"reason\": \"Tos\",\n    \"doctor\": \"Dr. Juan Pérez\",\n    \"illness\": \"Tos productiva 5 días, fiebre 38.5°C\",\n    \"history\": \"Sin antecedentes relevantes\"\n  },\n  \"observations\": {\n    \"weight_kg\": 68,\n    \"height_cm\": 170,\n    \"blood_pressure\": \"120/80\",\n    \"heart_rate\": 88,\n    \"respiratory_rate\": 20,\n    \"temperature_c\": 38.5,\n    \"oxygen_saturation\": 96,\n    \"triage_system\": \"Colombia-5-niveles\",\n    \"triage_level\": \"III\",\n    \"triage_pain_scale\": 5,\n    \"triage_consciousness\": \"A-Alerta\",\n    \"triage_vital_risk\": \"Sin riesgo vital inmediato\"\n  },\n  \"condition\": {\n    \"primary_code\": \"J06.9\",\n    \"primary_desc\": \"Infección aguda de vías respiratorias superiores\"\n  },\n  \"medication_request\": {\n    \"conduct\": \"Manejo ambulatorio\",\n    \"prescription\": \"Amoxicilina 500mg, Oral, Cada 8 horas, 7 días\"\n  },\n  \"sync_mode\": \"sync\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/clinical-records", "host": ["{{base_url}}"], "path": ["api","clinical-records"] }
+          }
+        },
+        {
+          "name": "POST Encounter (via clinical-service)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patient_id\": \"P-abc123\",\n  \"sede\": \"Sincelejo\",\n  \"class\": \"Urgencias\",\n  \"reason\": \"Dolor torácico\"\n}"
+            },
+            "url": { "raw": "{{base_url}}/api/v1/clinical/encounter", "host": ["{{base_url}}"], "path": ["api","v1","clinical","encounter"] }
+          }
+        },
+        {
+          "name": "GET Nodos BD Distributed Health",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/clinical/health/distributed", "host": ["{{base_url}}"], "path": ["api","v1","clinical","health","distributed"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🔄 Sincronización Outbox",
+      "item": [
+        {
+          "name": "POST Procesar Pendientes (Admin Manual)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/v1/admin/outbox/process-pending", "host": ["{{base_url}}"], "path": ["api","v1","admin","outbox","process-pending"] }
+          }
+        },
+        {
+          "name": "GET Eventos Recientes (Admin Dashboard)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/api/v1/admin/dashboard/recent-events", "host": ["{{base_url}}"], "path": ["api","v1","admin","dashboard","recent-events"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "⚡ Simulación Tolerancia a Fallos",
+      "item": [
+        {
+          "name": "POST Simular Caída Sincelejo",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/nodes/Sincelejo/fail", "host": ["{{base_url}}"], "path": ["api","nodes","Sincelejo","fail"] }
+          }
+        },
+        {
+          "name": "POST Simular Caída Bogotá",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/nodes/Bogotá/fail", "host": ["{{base_url}}"], "path": ["api","nodes","Bogot%C3%A1","fail"] }
+          }
+        },
+        {
+          "name": "POST Simular Caída Medellín",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/nodes/Medellín/fail", "host": ["{{base_url}}"], "path": ["api","nodes","Medell%C3%ADn","fail"] }
+          }
+        },
+        {
+          "name": "POST Restaurar Sincelejo",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/nodes/Sincelejo/restore", "host": ["{{base_url}}"], "path": ["api","nodes","Sincelejo","restore"] }
+          }
+        },
+        {
+          "name": "POST Simular Caída Cloud FHIR",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/cloud/fail", "host": ["{{base_url}}"], "path": ["api","cloud","fail"] }
+          }
+        },
+        {
+          "name": "POST Restaurar Cloud FHIR",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }] },
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/api/cloud/restore", "host": ["{{base_url}}"], "path": ["api","cloud","restore"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "🌐 HAPI FHIR R4",
+      "item": [
+        {
+          "name": "GET FHIR Metadata (Capability Statement)",
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{fhir_url}}/metadata", "host": ["{{fhir_url}}"], "path": ["metadata"] }
+          }
+        },
+        {
+          "name": "GET Patients (count)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/Patient?_summary=count",
+              "host": ["{{fhir_url}}"],
+              "path": ["Patient"],
+              "query": [{ "key": "_summary", "value": "count" }]
+            }
+          }
+        },
+        {
+          "name": "GET Encounters (count)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/Encounter?_summary=count",
+              "host": ["{{fhir_url}}"],
+              "path": ["Encounter"],
+              "query": [{ "key": "_summary", "value": "count" }]
+            }
+          }
+        },
+        {
+          "name": "GET Observations (count)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/Observation?_summary=count",
+              "host": ["{{fhir_url}}"],
+              "path": ["Observation"],
+              "query": [{ "key": "_summary", "value": "count" }]
+            }
+          }
+        },
+        {
+          "name": "GET Conditions (count)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/Condition?_summary=count",
+              "host": ["{{fhir_url}}"],
+              "path": ["Condition"],
+              "query": [{ "key": "_summary", "value": "count" }]
+            }
+          }
+        },
+        {
+          "name": "GET MedicationRequests (count)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/MedicationRequest?_summary=count",
+              "host": ["{{fhir_url}}"],
+              "path": ["MedicationRequest"],
+              "query": [{ "key": "_summary", "value": "count" }]
+            }
+          }
+        },
+        {
+          "name": "GET Buscar Patient por identificador",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{fhir_url}}/Patient?identifier=1098765432",
+              "host": ["{{fhir_url}}"],
+              "path": ["Patient"],
+              "query": [{ "key": "identifier", "value": "1098765432" }]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
