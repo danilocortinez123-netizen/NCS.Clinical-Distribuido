@@ -153,6 +153,7 @@
         }
 
         function initGlobalSede() {
+            checkNodesStatus();
             const selector = document.getElementById('globalSedeSelector');
             function updatePills() {
                 selector.querySelectorAll('.sede-pill').forEach(p => {
@@ -177,6 +178,10 @@
         });
         
         async function ejecutarBusqueda() {
+            if (isActiveSedeOffline()) {
+                showToast('No se puede consultar desde una sede caída.', 'error');
+                return;
+            }
             const doc = document.getElementById('s_doc').value;
             const filter = document.getElementById('s_filter').value;
             const resultsDiv = document.getElementById('results');
@@ -406,5 +411,92 @@
             window.location.replace('/login');
         }
     </script>
+<script>
+        let nodesStatusGlobal = {};
+        
+        async function checkNodesStatus() {
+            try {
+                const res = await fetch('/api/v1/admin/dashboard/status', {
+                    headers: { 'Authorization': 'Bearer ' + (localStorage.getItem('his_token') || '') }
+                });
+                if (!res.ok) return;
+                const data = await res.json();
+                nodesStatusGlobal = data.nodes || {};
+                
+                const selector = document.getElementById('globalSedeSelector');
+                if (!selector) return;
+
+                let activeSedeIsOffline = false;
+                
+                selector.querySelectorAll('.sede-pill').forEach(pill => {
+                    const sedeName = pill.dataset.sede;
+                    let status = nodesStatusGlobal[sedeName] || nodesStatusGlobal[sedeName.toLowerCase()] || 'ACTIVO';
+                    
+                    if (status === 'OFFLINE' || status === 'CAIDO') {
+                        pill.classList.add('offline');
+                        pill.style.pointerEvents = 'none';
+                        pill.style.opacity = '0.5';
+                        pill.style.background = '#fef2f2';
+                        pill.style.color = '#ef4444';
+                        pill.style.borderColor = '#fca5a5';
+                        if (!pill.innerText.includes('(Caída)')) {
+                            pill.innerText = sedeName + ' (Caída)';
+                        }
+                        
+                        if (activeSede === sedeName) {
+                            activeSedeIsOffline = true;
+                        }
+                    } else {
+                        pill.classList.remove('offline');
+                        pill.style.pointerEvents = 'auto';
+                        pill.style.opacity = '1';
+                        pill.style.background = '';
+                        pill.style.color = '';
+                        pill.style.borderColor = '';
+                        pill.innerText = sedeName;
+                    }
+                });
+
+                if (activeSedeIsOffline) {
+                    let firstActive = null;
+                    selector.querySelectorAll('.sede-pill:not(.offline)').forEach(pill => {
+                        if (!firstActive) firstActive = pill.dataset.sede;
+                    });
+                    
+                    if (firstActive) {
+                        activeSede = firstActive;
+                        sessionStorage.setItem('activeSede', activeSede);
+                        
+                        if (typeof showToast === 'function') {
+                            showToast(`La sede seleccionada estaba caída. Se cambió automáticamente a ${firstActive}.`, 'warning');
+                        } else {
+                            alert(`La sede seleccionada estaba caída. Se cambió automáticamente a ${firstActive}.`);
+                        }
+                        
+                        selector.querySelectorAll('.sede-pill').forEach(p => {
+                            if (p.dataset.sede === activeSede) p.classList.add('active');
+                            else p.classList.remove('active');
+                        });
+                        
+                        if (typeof ejecutarBusqueda === 'function') ejecutarBusqueda();
+                    } else {
+                        if (typeof showToast === 'function') {
+                            showToast('TODAS las sedes están caídas. El sistema está inoperativo.', 'error');
+                        }
+                    }
+                }
+            } catch(e) {
+                console.warn('Error checking nodes status:', e);
+            }
+        }
+        
+        function isActiveSedeOffline() {
+            let status = nodesStatusGlobal[activeSede] || nodesStatusGlobal[activeSede.toLowerCase()] || 'ACTIVO';
+            return (status === 'OFFLINE' || status === 'CAIDO');
+        }
+        
+        // Start checking nodes periodically
+        setInterval(checkNodesStatus, 3000);
+</script>
 </body>
 </html>
