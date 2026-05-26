@@ -291,6 +291,19 @@
                 let hasCondition = false;
                 let hasMedication = false;
 
+                function formatSyncStatus(value) {
+                    if (!value || value === "null" || value === "undefined") return "Pendiente de sincronización";
+                    if (value === "processed") return "Procesado";
+                    if (value === "SYNCED") return "Sincronizado";
+                    if (value === "IMPORTED_FROM_REMOTE") return "Importado desde red";
+                    return value;
+                }
+                
+                function getSafeValue(val) {
+                    if (!val || val === "null" || val === "undefined") return "No registrado";
+                    return val;
+                }
+
                 if (p.timeline && p.timeline.length > 0) {
                     p.timeline.forEach(t => {
                         let fhirTypes = [];
@@ -323,17 +336,20 @@
                         
                         let fieldsHtml = '<ul style="margin: 0.5rem 0 0 1rem; padding: 0; font-size: 0.8rem; color: #475569;">';
                         
-                        let encounterReason = t.encounter?.causa_atencion || t.encounter?.reason || t.encounter?.reasonCode?.[0]?.text;
-                        if (encounterReason) fieldsHtml += `<li><strong>Historia clínica:</strong> ${encounterReason}</li>`;
+                        let encounterReason = getSafeValue(t.encounter?.causa_atencion || t.encounter?.reason || t.encounter?.reasonCode?.[0]?.text);
+                        fieldsHtml += `<li><strong>Historia clínica:</strong> ${encounterReason}</li>`;
                         
-                        let conditionDesc = t.condition?.diagnostico_ingreso || t.condition?.primary_desc || t.condition?.code?.text;
+                        let conditionDescRaw = t.condition?.diagnostico_ingreso || t.condition?.primary_desc || t.condition?.code?.text;
                         let conditionCode = t.condition?.primary_code || '';
-                        if (conditionDesc) fieldsHtml += `<li><strong>Diagnóstico:</strong> ${conditionCode ? conditionCode + ' - ' : ''}${conditionDesc}</li>`;
+                        let conditionDesc = getSafeValue(conditionDescRaw ? (conditionCode ? conditionCode + ' - ' + conditionDescRaw : conditionDescRaw) : null);
+                        fieldsHtml += `<li><strong>Diagnóstico:</strong> ${conditionDesc}</li>`;
                         
-                        let medicationDesc = t.medication?.descripcion_medicamento || t.medication?.prescription || t.medication?.medicationCodeableConcept?.text;
-                        if (medicationDesc) fieldsHtml += `<li><strong>Prescripción:</strong> ${medicationDesc}</li>`;
+                        let medicationDesc = getSafeValue(t.medication?.descripcion_medicamento || t.medication?.prescription || t.medication?.medicationCodeableConcept?.text);
+                        fieldsHtml += `<li><strong>Prescripción:</strong> ${medicationDesc}</li>`;
                         
-                        fieldsHtml += `<li><strong>Estado Sync:</strong> <span class="badge ${t.status === 'processed' ? 'b-ok' : 'b-pend'}">${t.status}</span></li>`;
+                        const formattedStatus = formatSyncStatus(String(t.status));
+                        const statusClass = (formattedStatus === 'Procesado' || formattedStatus === 'Sincronizado') ? 'b-ok' : 'b-pend';
+                        fieldsHtml += `<li><strong>Estado Sync:</strong> <span class="badge ${statusClass}">${formattedStatus}</span></li>`;
                         fieldsHtml += '</ul>';
 
                         tlHtml += `
