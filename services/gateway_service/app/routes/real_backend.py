@@ -201,6 +201,9 @@ async def get_dashboard():
         conn_ev.close()
     except Exception as e:
         logging.getLogger(__name__).warning(f"Error fetching DB stats: {e}")
+        pending_by_node   = {"sincelejo": 0, "bogotá": 0, "medellín": 0}
+        processed_by_node = {"sincelejo": 0, "bogotá": 0, "medellín": 0}
+        failed_by_node    = {"sincelejo": 0, "bogotá": 0, "medellín": 0}
 
     hapi_fhir_count = 0
     hapi_fhir_online = False
@@ -215,18 +218,53 @@ async def get_dashboard():
 
     any_offline = any(s == "OFFLINE" for s in nodes_state.values())
     mode = "CLOUD_OFFLINE" if cloud_state == "OFFLINE" else ("NODE_FAILURE" if any_offline else "HIBRIDO_NORMAL")
-    
+
+    # ── Normalización de nombres de sede ──────────────────────────────────────────────
+    # Colapsa variantes con/sin tilde a la forma canónica.
+    # NO modifica la BD — solo transforma la respuesta de este endpoint.
+    _SEDE_VARIANTS = {
+        "bogota":   "Bogotá",  "bogotá":   "Bogotá",
+        "Bogota":   "Bogotá",  "Bogotá":   "Bogotá",
+        "BOGOTA":   "Bogotá",  "BOGOTÁ":   "Bogotá",
+        "medellin": "Medellín", "medellín": "Medellín",
+        "Medellin": "Medellín", "Medellín": "Medellín",
+        "MEDELLIN": "Medellín", "MEDELLÍN": "Medellín",
+        "sincelejo": "Sincelejo", "Sincelejo": "Sincelejo", "SINCELEJO": "Sincelejo",
+    }
+
+    def _canon(key: str) -> str:
+        return _SEDE_VARIANTS.get(key) or _SEDE_VARIANTS.get(key.lower(), key.strip().capitalize())
+
+    def _normalize(raw: dict) -> dict:
+        out: dict = {}
+        for k, v in raw.items():
+            c = _canon(str(k))
+            out[c] = out.get(c, 0) + (v or 0)
+        return out
+
+    patients_norm  = _normalize(patients_count)
+    pending_norm   = _normalize(pending_by_node)
+    processed_norm = _normalize(processed_by_node)
+    failed_norm    = _normalize(failed_by_node)
+
+    # Garantizar que las 3 sedes canónicas siempre aparezcan
+    for _s in ("Sincelejo", "Bogotá", "Medellín"):
+        patients_norm.setdefault(_s, 0)
+        pending_norm.setdefault(_s, 0)
+        processed_norm.setdefault(_s, 0)
+        failed_norm.setdefault(_s, 0)
+
     return {
         "nodes": nodes_state,
         "cloud": "ACTIVO" if hapi_fhir_online else "OFFLINE",
-        "patients": patients_count,
+        "patients": patients_norm,
         "patients_sync": patients_sync_status,
-        "pending_events": events_count.get("pending", 0),
+        "pending_events":   events_count.get("pending", 0),
         "processed_events": events_count.get("processed", 0),
-        "failed_events": events_count.get("failed", 0),
-        "pending_by_node": pending_by_node if 'pending_by_node' in locals() else {"sincelejo": 0, "bogotá": 0, "medellín": 0},
-        "processed_by_node": processed_by_node if 'processed_by_node' in locals() else {"sincelejo": 0, "bogotá": 0, "medellín": 0},
-        "failed_by_node": failed_by_node if 'failed_by_node' in locals() else {"sincelejo": 0, "bogotá": 0, "medellín": 0},
+        "failed_events":    events_count.get("failed", 0),
+        "pending_by_node":   pending_norm,
+        "processed_by_node": processed_norm,
+        "failed_by_node":    failed_norm,
         "cloud_fhir_patients": hapi_fhir_count,
         "mode": mode
     }
