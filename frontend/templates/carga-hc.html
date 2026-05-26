@@ -243,9 +243,9 @@
                     <button class="btn btn-outline" onclick="generarDatosPrueba()" style="color:#7c3aed; border-color:#c4b5fd; background:#f5f3ff;" title="Rellena el formulario con datos clínicos de prueba"><i class="ph ph-flask"></i> Datos de Prueba</button>
                 </div>
                 <div style="display:flex; gap:1rem;">
-                    <button class="btn btn-outline" onclick="limpiar()"><i class="ph ph-eraser"></i> Limpiar</button>
-                    <button class="btn btn-outline" onclick="guardarHC('local')" style="color:#2563eb; border-color:#bfdbfe;"><i class="ph ph-hard-drive"></i> Guardar Localmente</button>
-                    <button class="btn btn-success" onclick="guardarHC('cloud')"><i class="ph ph-cloud-arrow-up"></i> Guardar y Sincronizar</button>
+                    <button class="btn btn-outline" onclick="limpiar()" id="btn-limpiar"><i class="ph ph-eraser"></i> Limpiar</button>
+                    <button class="btn btn-outline" onclick="guardarHC('local')" id="btn-save-local" style="color:#2563eb; border-color:#bfdbfe;"><i class="ph ph-hard-drive"></i> Guardar Localmente</button>
+                    <button class="btn btn-success" onclick="guardarHC('cloud')" id="btn-save-cloud"><i class="ph ph-cloud-arrow-up"></i> Guardar y Sincronizar</button>
                 </div>
             </div>
         </div>
@@ -439,6 +439,12 @@
         
         async function guardarHC(mode) {
             if (!currentPatientId) return;
+            
+            const btnCloud = document.getElementById('btn-save-cloud');
+            const btnLocal = document.getElementById('btn-save-local');
+            if (btnCloud) btnCloud.disabled = true;
+            if (btnLocal) btnLocal.disabled = true;
+
             try {
                 const res = await fetch(`/api/v1/patient/${currentPatientId}`);
                 if (!res.ok) throw new Error("Paciente no cargado localmente.");
@@ -528,6 +534,11 @@
                 limpiar();
             } catch (err) {
                 showToast(`Error al guardar: ${err.message}`, 'error');
+            } finally {
+                const btnCloud = document.getElementById('btn-save-cloud');
+                const btnLocal = document.getElementById('btn-save-local');
+                if (btnCloud) btnCloud.disabled = false;
+                if (btnLocal) btnLocal.disabled = false;
             }
         }
         
