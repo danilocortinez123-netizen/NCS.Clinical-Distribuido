@@ -414,6 +414,25 @@
 <script>
         let nodesStatusGlobal = {};
         
+        function getCurrentSedeSafe() {
+            if (typeof activeSede !== 'undefined' && activeSede) return activeSede;
+            if (window.activeSede) return window.activeSede;
+            if (localStorage.getItem('activeSede')) return localStorage.getItem('activeSede');
+
+            const activeBtn = document.querySelector('.sede-pill.active, .sede-btn.active, [data-sede].active');
+            if (activeBtn && activeBtn.dataset.sede) return activeBtn.dataset.sede;
+
+            const label = document.querySelector('[data-active-sede], #activeSedeLabel, .active-sede-label');
+            if (label) {
+                const txt = label.textContent || '';
+                if (txt.includes('Sincelejo')) return 'Sincelejo';
+                if (txt.includes('Bogotá')) return 'Bogotá';
+                if (txt.includes('Medellín')) return 'Medellín';
+            }
+
+            return 'Sincelejo';
+        }
+        
         async function checkNodesStatus() {
             try {
                 const res = await fetch('/api/dashboard/status', {
@@ -427,6 +446,7 @@
                 if (!selector) return;
 
                 let activeSedeIsOffline = false;
+                const currentSede = getCurrentSedeSafe();
                 
                 selector.querySelectorAll('.sede-pill').forEach(pill => {
                     const sedeName = pill.dataset.sede;
@@ -442,11 +462,11 @@
                         pill.style.background = '#fef2f2';
                         pill.style.color = '#ef4444';
                         pill.style.borderColor = '#fca5a5';
-                        if (!pill.innerText.includes('(Offline)')) {
-                            pill.innerText = sedeName + ' (Offline)';
+                        if (!pill.innerText.includes('(Caída)')) {
+                            pill.innerText = sedeName + ' (Caída)';
                         }
                         
-                        if (activeSede === sedeName) {
+                        if (currentSede === sedeName) {
                             activeSedeIsOffline = true;
                         }
                     } else {
@@ -468,8 +488,12 @@
                     });
                     
                     if (firstActive) {
-                        activeSede = firstActive;
-                        sessionStorage.setItem('activeSede', activeSede);
+                        if (typeof activeSede !== 'undefined') {
+                            activeSede = firstActive;
+                        } else {
+                            window.activeSede = firstActive;
+                        }
+                        sessionStorage.setItem('activeSede', firstActive);
                         
                         if (typeof showToast === 'function') {
                             showToast(`La sede seleccionada está offline. Se cambió automáticamente a ${firstActive}.`, 'warning');
@@ -478,14 +502,14 @@
                         }
                         
                         selector.querySelectorAll('.sede-pill').forEach(p => {
-                            if (p.dataset.sede === activeSede) p.classList.add('active');
+                            if (p.dataset.sede === firstActive) p.classList.add('active');
                             else p.classList.remove('active');
                         });
                         
                         const lbl = document.getElementById('lblSedeDestino');
-                        if (lbl) lbl.innerText = activeSede;
+                        if (lbl) lbl.innerText = firstActive;
                         const inputSede = document.getElementById('f_sede_atencion');
-                        if (inputSede) inputSede.value = activeSede;
+                        if (inputSede) inputSede.value = firstActive;
                         
                         if (typeof ejecutarBusqueda === 'function') ejecutarBusqueda();
                     } else {
@@ -500,7 +524,8 @@
         }
         
         function isActiveSedeOffline() {
-            let status = nodesStatusGlobal[activeSede] || nodesStatusGlobal[activeSede.toLowerCase()] || 'ACTIVO';
+            const currentSede = getCurrentSedeSafe();
+            let status = nodesStatusGlobal[currentSede] || nodesStatusGlobal[currentSede.toLowerCase()] || 'ACTIVO';
             return status !== 'ACTIVO';
         }
         
