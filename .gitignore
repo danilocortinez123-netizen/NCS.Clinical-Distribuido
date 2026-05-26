@@ -28,3 +28,17 @@ prometheus_data/
 grafana_data/
 
 .DS_Store
+
+# Archivos locales auxiliares y backups
+*.bak3
+*.bak4
+*.bak.prom
+finalize_git.sh
+unify_ui.py
+untrack_baks.sh
+requirements-dev.txt
+
+# Carpetas locales antiguas/no entregables
+archive/
+database/
+hybrid-deployment/
