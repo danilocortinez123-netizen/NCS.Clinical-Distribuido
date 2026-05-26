@@ -40,7 +40,6 @@ requirements-dev.txt
 
 # Carpetas locales antiguas/no entregables
 archive/
-database/
 hybrid-deployment/
 
 # Backups y scripts temporales visuales
