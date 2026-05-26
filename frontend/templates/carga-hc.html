@@ -122,6 +122,61 @@
                 </div>
             </div>
             
+            <div class="fhir-resource" style="border-left: 4px solid #dc2626;">
+                <h4 style="color:#dc2626"><i class="ph ph-siren"></i> Triage y Clasificación de Urgencia</h4>
+                <div class="form-grid" style="grid-template-columns: repeat(3, 1fr);">
+                    <div class="form-group">
+                        <label>Sistema de Triage</label>
+                        <select id="triage_sistema">
+                            <option value="Colombia-5-niveles">Triage Colombia (5 niveles / MSPS)</option>
+                            <option value="Manchester">Manchester Triage System (MTS)</option>
+                            <option value="ESI">ESI - Emergency Severity Index</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Nivel de Triage Asignado</label>
+                        <select id="triage_nivel" style="font-weight:700">
+                            <option value="">-- Seleccione nivel --</option>
+                            <option value="I" style="color:#dc2626">I — Reanima ción / Inmediato (≤ 0 min)</option>
+                            <option value="II" style="color:#f97316">II — Emergencia (≤ 15 min)</option>
+                            <option value="III" style="color:#eab308">III — Urgente (≤ 30 min)</option>
+                            <option value="IV" style="color:#22c55e">IV — Menos Urgente (≤ 120 min)</option>
+                            <option value="V" style="color:#3b82f6">V — No Urgente (≤ 240 min)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Estado de Conciencia (AVDI)</label>
+                        <select id="triage_conciencia">
+                            <option value="A-Alerta">A — Alerta</option>
+                            <option value="V-Voz">V — Responde a la voz</option>
+                            <option value="D-Dolor">D — Responde al dolor</option>
+                            <option value="I-Inconsciente">I — Inconsciente</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Escala de Dolor (0-10)</label>
+                        <input type="number" id="triage_dolor" min="0" max="10" step="1" placeholder="0-10">
+                    </div>
+                    <div class="form-group">
+                        <label>Riesgo Vital</label>
+                        <select id="triage_riesgo_vital">
+                            <option value="Sin riesgo vital inmediato">Sin riesgo vital inmediato</option>
+                            <option value="Riesgo vital potencial">Riesgo vital potencial</option>
+                            <option value="Riesgo vital inmediato">Riesgo vital inmediato</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo de Triage</label>
+                        <input type="text" id="triage_motivo" placeholder="Ej. Dolor torácico, disnea...">
+                    </div>
+                </div>
+                <div style="margin-top: 1rem; text-align: right;">
+                    <button class="btn" style="background:#fff7ed;border:1px solid #fed7aa;color:#c2410c;font-weight:700" onclick="sugerirTriage()">
+                        <i class="ph ph-brain"></i> Sugerir Nivel de Triage (Automático)
+                    </button>
+                </div>
+            </div>
+
             <div class="fhir-resource">
                 <h4><i class="ph ph-heartbeat"></i> Signos Vitales y Examen Físico</h4>
                 <div class="form-grid" style="grid-template-columns: repeat(4, 1fr);">
@@ -132,11 +187,13 @@
                     <div class="form-group"><label>F. Respiratoria (rpm)</label><input type="number" id="obs_rr"></div>
                     <div class="form-group"><label>Temp (°C)</label><input type="number" step="0.1" id="obs_temp"></div>
                     <div class="form-group"><label>Sat. O2 (%)</label><input type="number" id="obs_o2"></div>
+                    <div class="form-group"><label>Glucemia (mg/dL)</label><input type="number" id="obs_glucemia" placeholder="Opcional"></div>
                 </div>
                 <div class="form-grid" style="margin-top: 1rem;">
                     <div class="form-group full"><label>Examen Físico</label><textarea id="obs_fisico" rows="2" placeholder="Hallazgos positivos y negativos relevantes al examen físico..."></textarea></div>
                 </div>
             </div>
+
             
             <div class="fhir-resource">
                 <h4><i class="ph ph-stethoscope"></i> Diagnósticos y Procedimientos</h4>
@@ -181,6 +238,53 @@
     <script>
         let currentPatientId = null;
         let activeSede = sessionStorage.getItem('activeSede') || 'Sincelejo';
+
+        // ─── Auth Guard ─────────────────────────────────────────────────────
+        (function() {
+            const token = localStorage.getItem('his_token');
+            if (!token) { window.location.replace('/login'); return; }
+            try {
+                const p = JSON.parse(atob(token.split('.')[1]));
+                if (p.exp * 1000 < Date.now()) {
+                    localStorage.removeItem('his_token'); localStorage.removeItem('his_user');
+                    window.location.replace('/login');
+                }
+            } catch(e) { window.location.replace('/login'); }
+        })();
+
+        function getAuthHeaders() {
+            const token = localStorage.getItem('his_token');
+            return token ? { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' }
+                         : { 'Content-Type': 'application/json' };
+        }
+
+        // ─── Triage auto-suggestion ────────────────────────────────────────────
+        function sugerirTriage() {
+            const o2   = parseFloat(document.getElementById('obs_o2').value)   || 100;
+            const fc   = parseFloat(document.getElementById('obs_hr').value)   || 80;
+            const fr   = parseFloat(document.getElementById('obs_rr').value)   || 16;
+            const temp = parseFloat(document.getElementById('obs_temp').value) || 36.6;
+            const dolor = parseFloat(document.getElementById('triage_dolor').value) || 0;
+            const conc = document.getElementById('triage_conciencia').value;
+
+            let nivel = 'V'; let razon = 'Sin hallazgos de alerta. Atención programada.';
+
+            if (conc === 'I-Inconsciente' || conc === 'D-Dolor' || o2 < 85 || fc > 150 || fc < 40) {
+                nivel = 'I'; razon = 'Riesgo vital inmediato detectado (alteración de conciencia / SatO2 crítica / FC extrema). Reanimación inmediata.';
+            } else if (o2 < 90 || conc === 'V-Voz' || fc > 130 || fr > 30 || dolor >= 9) {
+                nivel = 'II'; razon = 'Emergencia: SatO2 < 90%, conciencia alterada, FC > 130 o dolor severo (>=9). Atención en ≤ 15 min.';
+            } else if (temp > 38.5 || dolor >= 7 || fc > 110 || fr > 24) {
+                nivel = 'III'; razon = 'Urgente: fiebre alta, dolor moderado-alto, FC o FR elevados. Atención en ≤ 30 min.';
+            } else if (dolor >= 4 || temp > 37.5 || fc > 100) {
+                nivel = 'IV'; razon = 'Menos urgente: dolor moderado, febrícula o taquicardia leve. Atención en ≤ 2 horas.';
+            } else {
+                nivel = 'V'; razon = 'No urgente: signos vitales estables, dolor leve o ausente. Consulta programada.';
+            }
+
+            document.getElementById('triage_nivel').value = nivel;
+            const labels = { 'I':'I — Reanimación','II':'II — Emergencia','III':'III — Urgente','IV':'IV — Menos Urgente','V':'V — No Urgente' };
+            showToast(`🩺 Nivel Sugerido: <b>${labels[nivel]}</b><br><small>${razon}</small>`, 'info');
+        }
 
         // ── Generador de datos clínicos de prueba ─────────────────────────
         const CASOS_CLINICOS = [
@@ -332,7 +436,14 @@
                         respiratory_rate: document.getElementById('obs_rr').value,
                         temperature_c: document.getElementById('obs_temp').value,
                         oxygen_saturation: document.getElementById('obs_o2').value,
-                        physical_exam: document.getElementById('obs_fisico').value
+                        glucose_mgdl: document.getElementById('obs_glucemia').value,
+                        physical_exam: document.getElementById('obs_fisico').value,
+                        triage_system: document.getElementById('triage_sistema').value,
+                        triage_level: document.getElementById('triage_nivel').value,
+                        triage_pain_scale: document.getElementById('triage_dolor').value,
+                        triage_consciousness: document.getElementById('triage_conciencia').value,
+                        triage_vital_risk: document.getElementById('triage_riesgo_vital').value,
+                        triage_reason: document.getElementById('triage_motivo').value,
                     },
                     condition: {
                         primary_code: document.getElementById('cond_code_1').value,
