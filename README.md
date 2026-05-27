@@ -199,3 +199,4 @@ docker compose up -d --build
 | **HAPI FHIR Server** | [http://localhost:8080](http://localhost:8080) | Consola y servidor de interoperabilidad |
 | **Grafana (Monitoreo)** | [http://localhost:3000](http://localhost:3000) | Métricas en tiempo real *(User/Pass: admin/admin)* |
 | **RabbitMQ Admin** | [http://localhost:15672](http://localhost:15672) | Gestor de colas de mensajería |
+Autores Danilo Diaz - Brayan Portacio 
