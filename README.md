@@ -1,15 +1,10 @@
-# 🏥 HIS Distribuido v3.0
-## Sistema de Historia Clínica Distribuida — Proyecto Académico Sistemas Distribuidos
+# NCS Clinical Distribuido
 
-[![Docker](https://img.shields.io/badge/Docker-Compose-blue)](https://docs.docker.com/compose/)
-[![FHIR](https://img.shields.io/badge/HL7-FHIR%20R4-orange)](https://hl7.org/fhir/R4/)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-green)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue)](https://www.postgresql.org/)
-[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3--management-orange)](https://www.rabbitmq.com/)
+## Sistema Distribuido para Registro, Consulta y Sincronización de Historias Clínicas
 
----
+Proyecto académico orientado a la gestión clínica distribuida, con registro de pacientes por sede, carga de historias clínicas, consulta de información médica, sincronización mediante eventos, monitoreo y simulación de fallos entre nodos.
 
-## 📋 Descripción
+📋 Descripción
 
 Sistema distribuido de historia clínica electrónica que implementa una arquitectura **hub-and-spoke** con 3 nodos geográficos (Sincelejo, Bogotá, Medellín) y un Cloud Core centralizado (HAPI FHIR R4 + RabbitMQ). Diseñado para demostrar conceptos clave de sistemas distribuidos:
 
@@ -61,7 +56,7 @@ Sistema distribuido de historia clínica electrónica que implementa una arquite
 Observabilidad:
   Prometheus :9090  ←  9 scrapers (gateway, patient, clinical, sync,
                          rabbitmq, pg-exporter × 3, prometheus)
-  Grafana    :3000  →  Dashboard "HIS Distribuido Overview"
+  Grafana    :3000  →  Dashboard "NCS Clinical Distribuido Overview"
 ```
 
 ---
@@ -98,7 +93,7 @@ Observabilidad:
 ```bash
 # Clonar el repositorio
 git clone <repo-url>
-cd historia-clinica-distribuida
+cd NCS.Clinical-Distribuido
 
 # Levantar todo (primera vez tarda ~3-5 min por descarga de imágenes y compilación JVM)
 docker compose up -d
@@ -247,7 +242,7 @@ GET  /fhir/MedicationRequest?_summary=count
 
 ### Grafana
 - URL: http://localhost:3000 (admin/admin)
-- Dashboard "HIS Distribuido Overview" auto-provisionado con:
+- Dashboard "NCS Clinical Distribuido Overview" auto-provisionado con:
   - Outbox: pending/processed/failed totals
   - Pending by node (Sincelejo/Bogotá/Medellín)
   - HTTP Request rate por servicio
@@ -339,7 +334,7 @@ El endpoint `POST /api/nodes/{sede}/fail` simula el fallo a nivel lógico (plano
 ## 📁 Estructura del proyecto
 
 ```
-historia-clinica-distribuida/
+NCS.Clinical-Distribuido/
 ├── docker-compose.yml           # Orquestación principal (17 servicios)
 ├── .env.example                 # Variables de entorno de referencia
 ├── Makefile                     # Comandos útiles
@@ -366,7 +361,7 @@ historia-clinica-distribuida/
 ├── docs/
 │   ├── ARCHITECTURE.md
 │   ├── paper_ieee.md            # Paper IEEE formato académico
-│   ├── HIS_Distribuido.postman_collection.json
+│   ├── NCS_Clinical_Distribuido.postman_collection.json
 │   └── screenshots/             # Evidencias visuales
 └── monitoring/                  # Prometheus + Grafana config
     ├── prometheus/prom.yml
