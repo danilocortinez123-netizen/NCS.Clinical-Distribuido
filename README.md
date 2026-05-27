@@ -1,4 +1,4 @@
-# 🏥 Análisis Exhaustivo del Sistema: Historia Clínica Distribuida NCS CLINICAL
+# 🏥 Análisis Exhaustivo del Sistema: Historia Clínica Distribuida
 
 El proyecto **NCS Clinical** es un Sistema Electrónico de Registros de Salud (EHR) avanzado. Destaca por su **arquitectura de microservicios distribuida**, alta disponibilidad mediante replicación asíncrona y cumplimiento del estándar de interoperabilidad internacional **FHIR R4**.
 
@@ -12,7 +12,35 @@ El sistema opera bajo un enfoque de **Microservicios** contenerizados, coordinad
 graph TD
     User([👤 Usuario / Médico]) -->|HTTP 8001| Gateway[🚪 Gateway Service]
     
+    subgraph 🧩 Microservicios
+        Gateway -->|HTTP| PatientSvc[👤 Patient Service]
+        Gateway -->|HTTP| ClinicalSvc[🩺 Clinical Service]
+    end
     
+    subgraph 🌐 Interoperabilidad
+        PatientSvc -->|HTTP REST| HapiFHIR[🔥 HAPI FHIR Server]
+    end
+    
+    subgraph 🗄️ Bases de Datos Distribuidas
+        HapiFHIR -->|JDBC| DB1[(🗄️ pg_nodo1<br>Sincelejo + FHIR DB)]
+        ClinicalSvc -->|Lectura/Escritura| DB1
+        ClinicalSvc -->|Lectura/Escritura| DB2[(🗄️ pg_nodo2<br>Bogotá)]
+        ClinicalSvc -->|Lectura/Escritura| DB3[(🗄️ pg_nodo3<br>Medellín)]
+    end
+    
+    subgraph ♻️ Sincronización Eventual
+        ClinicalSvc -.->|Inserta Evento| Outbox[(📝 Outbox Tables)]
+        SyncSvc[🔄 Sync Service] -->|Lee| Outbox
+        SyncSvc -->|Publica| RMQ[[🐇 RabbitMQ Broker]]
+        RMQ -->|Consume/Replica| DB1
+        RMQ -->|Consume/Replica| DB2
+        RMQ -->|Consume/Replica| DB3
+    end
+    
+    subgraph 📊 Monitoreo
+        Prom[📈 Prometheus] -.->|Scrape| Exporters[🔌 Postgres Exporters]
+        Grafana[📊 Grafana] -->|Lee datos| Prom
+    end
 ```
 
 ### 🧩 Componentes Principales
@@ -171,4 +199,4 @@ docker compose up -d --build
 | **HAPI FHIR Server** | [http://localhost:8080](http://localhost:8080) | Consola y servidor de interoperabilidad |
 | **Grafana (Monitoreo)** | [http://localhost:3000](http://localhost:3000) | Métricas en tiempo real *(User/Pass: admin/admin)* |
 | **RabbitMQ Admin** | [http://localhost:15672](http://localhost:15672) | Gestor de colas de mensajería |
-Autores Danilo Diaz - Brayan Portacio 
+Autores Danilo Diaz - Danilo Diaz 
