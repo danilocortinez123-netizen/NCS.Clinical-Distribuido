@@ -12,7 +12,7 @@ El sistema opera bajo un enfoque de **Microservicios** contenerizados, coordinad
 graph TD
     User([👤 Usuario / Médico]) -->|HTTP 8001| Gateway[🚪 Gateway Service]
     
-    subgraph 🧩 Microservicios
+    "subgraph 🧩 Microservicios"
         Gateway -->|HTTP| PatientSvc[👤 Patient Service]
         Gateway -->|HTTP| ClinicalSvc[🩺 Clinical Service]
     end
