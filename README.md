@@ -1,4 +1,5 @@
 # 🏥 Análisis Exhaustivo del Sistema: Historia Clínica Distribuida
+#Autores Danilo Diaz - Brayan Portacio 
 
 El proyecto **NCS Clinical** es un Sistema Electrónico de Registros de Salud (EHR) avanzado. Destaca por su **arquitectura de microservicios distribuida**, alta disponibilidad mediante replicación asíncrona y cumplimiento del estándar de interoperabilidad internacional **FHIR R4**.
 
@@ -199,4 +200,4 @@ docker compose up -d --build
 | **HAPI FHIR Server** | [http://localhost:8080](http://localhost:8080) | Consola y servidor de interoperabilidad |
 | **Grafana (Monitoreo)** | [http://localhost:3000](http://localhost:3000) | Métricas en tiempo real *(User/Pass: admin/admin)* |
 | **RabbitMQ Admin** | [http://localhost:15672](http://localhost:15672) | Gestor de colas de mensajería |
-Autores Danilo Diaz - Danilo Diaz 
+
